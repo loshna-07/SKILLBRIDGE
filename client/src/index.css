@@ -1,0 +1,601 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0284c7;
+  --color-brand-600: #0369a1;
+  --color-brand-700: #075985;
+  --color-brand-800: #0c4a6e;
+  --color-brand-900: #075985;
+  --color-brand-950: #082f49;
+
+  --color-accent-50: #f0fdf4;
+  --color-accent-100: #dcfce7;
+  --color-accent-200: #bbf7d0;
+  --color-accent-300: #86efac;
+  --color-accent-400: #4ade80;
+  --color-accent-500: #22c55e;
+  --color-accent-600: #16a34a;
+  --color-accent-700: #15803d;
+  --color-accent-800: #166534;
+  --color-accent-900: #14532d;
+  --color-accent-950: #052e16;
+}
+
+/* Base Light Mode Styles (100% untouched) */
+body {
+  margin: 0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* =========================================================================
+   PREMIUM DARK THEME: NEAR-BLACK, DARK CHARCOAL SURFACES & ELECTRIC ACCENTS
+   Inspired by Reference UI: Near-Black + Charcoal + Electric Blue + Violet + Pink
+   ========================================================================= */
+
+html.dark {
+  background-color: #07080c;
+  color-scheme: dark;
+}
+
+/* 1. Page Background: Near-Black Base + Subtle Electric Blue, Violet, & Magenta Ambient Lighting */
+html.dark body {
+  background-color: #07080c;
+  color: #f1f5f9;
+  background-image:
+    /* Top-Center subtle Electric Blue ambient highlight */
+    radial-gradient(1000px circle at 50% -8%, rgba(37, 99, 235, 0.11), rgba(2, 132, 199, 0.02) 40%, transparent 70%),
+    /* Top-Left deep Indigo/Violet glow */
+    radial-gradient(1100px circle at 10% 15%, rgba(99, 102, 241, 0.10), rgba(79, 70, 229, 0.02) 45%, transparent 75%),
+    /* Top-Right subtle Royal Blue atmospheric light */
+    radial-gradient(1050px circle at 90% 12%, rgba(29, 78, 216, 0.10), rgba(30, 64, 175, 0.02) 45%, transparent 75%),
+    /* Bottom-Left very subtle Magenta/Pink accent glow */
+    radial-gradient(1150px circle at 15% 90%, rgba(219, 39, 119, 0.06), rgba(168, 85, 247, 0.02) 45%, transparent 70%),
+    /* Bottom-Right Deep Violet atmosphere */
+    radial-gradient(1200px circle at 85% 88%, rgba(124, 58, 237, 0.08), rgba(67, 56, 202, 0.02) 50%, transparent 80%),
+    /* Near-black charcoal background */
+    linear-gradient(180deg, #07080c 0%, #0a0b11 50%, #07080c 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* 2. Distinct Dark Charcoal Card Surfaces (Never White, Never Light Gray) */
+/* Primary Card Surface: Sleek Dark Charcoal */
+html.dark .bg-white,
+html.dark [class*="bg-white"] {
+  background-color: #121318 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Secondary Inset & Nested Panels: Deep Charcoal */
+html.dark .bg-slate-50,
+html.dark [class*="bg-slate-50"],
+html.dark .bg-gray-50,
+html.dark [class*="bg-gray-50"] {
+  background-color: #0c0d12 !important;
+}
+
+html.dark .bg-slate-100,
+html.dark [class*="bg-slate-100"],
+html.dark .bg-gray-100,
+html.dark [class*="bg-gray-100"] {
+  background-color: #15161e !important;
+}
+
+html.dark .bg-slate-200,
+html.dark [class*="bg-slate-200"],
+html.dark .bg-gray-200,
+html.dark [class*="bg-gray-200"] {
+  background-color: #1a1c26 !important;
+}
+
+/* 3. Subtle Translucent Borders */
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark [class*="border-slate-200"],
+html.dark .border-slate-300,
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark .border-slate-400,
+html.dark .border-gray-400 {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+html.dark .border-dashed {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* 4. High-Contrast, Crisp Typography in Dark Mode */
+html.dark .text-slate-900,
+html.dark .text-slate-950,
+html.dark .text-gray-900,
+html.dark .text-gray-950 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-800,
+html.dark .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-gray-700 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-500,
+html.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark .text-slate-400,
+html.dark .text-gray-400 {
+  color: #64748b !important;
+}
+
+/* Colored Typography Dark Mode Mappings */
+html.dark .text-emerald-700,
+html.dark .text-emerald-800,
+html.dark .text-emerald-900,
+html.dark .text-emerald-950 {
+  color: #4ade80 !important;
+}
+
+html.dark .text-sky-700,
+html.dark .text-sky-800,
+html.dark .text-sky-900,
+html.dark .text-sky-950 {
+  color: #60a5fa !important;
+}
+
+html.dark .text-brand-700,
+html.dark .text-brand-800,
+html.dark .text-brand-900,
+html.dark .text-brand-950 {
+  color: #38bdf8 !important;
+}
+
+html.dark .text-purple-700,
+html.dark .text-purple-800,
+html.dark .text-purple-900,
+html.dark .text-purple-950 {
+  color: #c084fc !important;
+}
+
+html.dark .text-amber-700,
+html.dark .text-amber-800,
+html.dark .text-amber-900,
+html.dark .text-amber-950 {
+  color: #fde68a !important;
+}
+
+html.dark .text-rose-700,
+html.dark .text-rose-800,
+html.dark .text-rose-900,
+html.dark .text-rose-950 {
+  color: #f472b6 !important;
+}
+
+html.dark .text-red-700,
+html.dark .text-red-800,
+html.dark .text-red-900,
+html.dark .text-red-950 {
+  color: #f87171 !important;
+}
+
+html.dark .text-indigo-700,
+html.dark .text-indigo-800,
+html.dark .text-indigo-900,
+html.dark .text-indigo-950 {
+  color: #818cf8 !important;
+}
+
+html.dark .text-teal-700,
+html.dark .text-teal-800,
+html.dark .text-teal-900,
+html.dark .text-teal-950 {
+  color: #2dd4bf !important;
+}
+
+/* =========================================================================
+   5. ABSOLUTE RULE FOR HOVER / ACTIVE / TOUCH: NEVER TURN WHITE OR LIGHT GRAY
+   ========================================================================= */
+
+/* Neutral Card & Element Hovers (Stays Charcoal + Subtle Electric Blue/Indigo Tint) */
+html.dark [class*="hover:bg-white"]:hover,
+html.dark [class*="hover:bg-slate-"]:hover,
+html.dark [class*="hover:bg-gray-"]:hover,
+html.dark [class*="hover:bg-zinc-"]:hover,
+html.dark [class*="hover:bg-neutral-"]:hover,
+html.dark .hover\:bg-white:hover,
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-50\/50:hover,
+html.dark .hover\:bg-slate-50\/80:hover,
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-slate-100\/50:hover,
+html.dark .hover\:bg-slate-100\/80:hover,
+html.dark .hover\:bg-slate-200:hover,
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover,
+html.dark .hover\:bg-gray-200:hover {
+  background-color: #1a1c26 !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.7), 0 0 15px 0 rgba(37, 99, 235, 0.14) !important;
+}
+
+/* Active & Focus States */
+html.dark [class*="active:bg-"]:active,
+html.dark .active\:bg-slate-100:active,
+html.dark .active\:bg-slate-200:active {
+  background-color: #1e2235 !important;
+  border-color: rgba(96, 165, 250, 0.45) !important;
+}
+
+/* Brand / Sky Hovers */
+html.dark [class*="hover:bg-brand-"]:hover,
+html.dark [class*="hover:bg-sky-"]:hover,
+html.dark .hover\:bg-brand-50:hover,
+html.dark .hover\:bg-brand-100:hover,
+html.dark .hover\:bg-sky-50:hover,
+html.dark .hover\:bg-sky-100:hover {
+  background-color: rgba(37, 99, 235, 0.22) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
+}
+
+/* Emerald Hovers */
+html.dark [class*="hover:bg-emerald-"]:hover,
+html.dark .hover\:bg-emerald-50:hover,
+html.dark .hover\:bg-emerald-100:hover {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+  border-color: rgba(74, 222, 128, 0.4) !important;
+}
+
+/* Purple Hovers */
+html.dark [class*="hover:bg-purple-"]:hover,
+html.dark .hover\:bg-purple-50:hover,
+html.dark .hover\:bg-purple-100:hover {
+  background-color: rgba(147, 51, 234, 0.22) !important;
+  border-color: rgba(192, 132, 252, 0.4) !important;
+}
+
+/* Amber Hovers */
+html.dark [class*="hover:bg-amber-"]:hover,
+html.dark .hover\:bg-amber-50:hover,
+html.dark .hover\:bg-amber-100:hover {
+  background-color: rgba(245, 158, 11, 0.22) !important;
+  border-color: rgba(251, 191, 36, 0.4) !important;
+}
+
+/* Rose / Red / Pink Hovers */
+html.dark [class*="hover:bg-rose-"]:hover,
+html.dark [class*="hover:bg-red-"]:hover,
+html.dark .hover\:bg-rose-50:hover,
+html.dark .hover\:bg-rose-100:hover,
+html.dark .hover\:bg-red-50:hover,
+html.dark .hover\:bg-red-100:hover {
+  background-color: rgba(219, 39, 119, 0.22) !important;
+  border-color: rgba(244, 114, 182, 0.4) !important;
+}
+
+/* Hover text rules - always stay bright and readable */
+html.dark [class*="hover:text-slate-9"]:hover,
+html.dark [class*="hover:text-slate-8"]:hover,
+html.dark [class*="hover:text-slate-7"]:hover,
+html.dark [class*="hover:text-black"]:hover,
+html.dark .hover\:text-slate-900:hover,
+html.dark .hover\:text-slate-800:hover,
+html.dark .hover\:text-slate-700:hover,
+html.dark .hover\:text-black:hover {
+  color: #ffffff !important;
+}
+
+html.dark [class*="hover:text-brand-"]:hover,
+html.dark .hover\:text-brand-600:hover,
+html.dark .hover\:text-brand-700:hover {
+  color: #38bdf8 !important;
+}
+
+html.dark [class*="hover:text-emerald-"]:hover,
+html.dark .hover\:text-emerald-600:hover,
+html.dark .hover\:text-emerald-700:hover {
+  color: #4ade80 !important;
+}
+
+html.dark [class*="hover:text-purple-"]:hover,
+html.dark .hover\:text-purple-600:hover,
+html.dark .hover\:text-purple-700:hover {
+  color: #c084fc !important;
+}
+
+html.dark [class*="hover:text-amber-"]:hover,
+html.dark .hover\:text-amber-600:hover,
+html.dark .hover\:text-amber-700:hover {
+  color: #fbbf24 !important;
+}
+
+html.dark [class*="hover:text-rose-"]:hover,
+html.dark .hover\:text-rose-600:hover,
+html.dark .hover\:text-rose-700:hover {
+  color: #f472b6 !important;
+}
+
+/* Card hover border & elevation */
+html.dark [class*="hover:shadow"]:hover,
+html.dark [class*="hover:border-"]:hover,
+html.dark .hover\:shadow-md:hover,
+html.dark .hover\:shadow-lg:hover,
+html.dark .hover\:shadow:hover,
+html.dark .hover\:border-brand-300:hover,
+html.dark .hover\:border-brand-400:hover,
+html.dark .hover\:border-purple-300:hover,
+html.dark .hover\:border-amber-200:hover,
+html.dark .hover\:border-emerald-200:hover {
+  background-color: #1a1c26 !important;
+  border-color: rgba(96, 165, 250, 0.40) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.75), 0 0 15px 0 rgba(37, 99, 235, 0.16) !important;
+}
+
+/* 6. Landing Hero Section in Dark Mode */
+html.dark section.bg-gradient-to-b,
+html.dark .bg-gradient-to-b.from-brand-50\/70 {
+  background:
+    radial-gradient(1000px circle at 50% -10%, rgba(37, 99, 235, 0.16), rgba(99, 102, 241, 0.03) 45%, transparent 75%),
+    radial-gradient(850px circle at 85% 15%, rgba(124, 58, 237, 0.12), transparent 60%),
+    radial-gradient(850px circle at 15% 20%, rgba(37, 99, 235, 0.12), transparent 60%),
+    radial-gradient(750px circle at 50% 90%, rgba(219, 39, 119, 0.06), transparent 60%),
+    linear-gradient(180deg, #090a10 0%, #07080c 100%) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Hero Discipline Cards in Dark Mode */
+html.dark .bg-emerald-50\/60 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.28) !important;
+}
+
+html.dark .bg-sky-50\/60 {
+  background-color: rgba(37, 99, 235, 0.1) !important;
+  border-color: rgba(96, 165, 250, 0.28) !important;
+}
+
+html.dark .bg-purple-50\/60 {
+  background-color: rgba(147, 51, 234, 0.1) !important;
+  border-color: rgba(192, 132, 252, 0.28) !important;
+}
+
+/* 7. Header & Navigation in Dark Mode */
+html.dark header {
+  background-color: rgba(7, 8, 12, 0.92) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* 8. Sidebar in Dark Mode */
+html.dark aside {
+  background-color: rgba(9, 10, 15, 0.96) !important;
+  border-right-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark aside nav a.bg-brand-50,
+html.dark aside nav a[class*="bg-brand-50"] {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.22) 0%, rgba(124, 58, 237, 0.22) 100%) !important;
+  color: #60a5fa !important;
+  border: 1px solid rgba(96, 165, 250, 0.38) !important;
+  box-shadow: 0 2px 12px -2px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* 9. Form Inputs & Controls in Dark Mode */
+html.dark input[type="text"],
+html.dark input[type="number"],
+html.dark input[type="email"],
+html.dark input[type="password"],
+html.dark input[type="date"],
+html.dark select,
+html.dark textarea {
+  background-color: #0c0d12 !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3), inset 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark select option {
+  background-color: #121318 !important;
+  color: #f8fafc !important;
+}
+
+/* 10. Modals, Dialogs & Dropdown Popovers */
+html.dark .shadow-xl,
+html.dark .shadow-2xl {
+  background-color: #121318 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark .bg-slate-900\/40,
+html.dark .bg-slate-900\/50,
+html.dark .bg-slate-900\/60,
+html.dark .bg-black\/50,
+html.dark .bg-black\/40,
+html.dark [class*="bg-slate-900/"],
+html.dark [class*="bg-black/"] {
+  background-color: rgba(3, 4, 7, 0.80) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+/* 11. Badges, Metric Icons & Status Pills in Dark Mode */
+html.dark .bg-brand-50,
+html.dark .bg-brand-100,
+html.dark .bg-brand-200,
+html.dark [class*="bg-brand-50"],
+html.dark [class*="bg-brand-100"] {
+  background-color: rgba(37, 99, 235, 0.16) !important;
+  color: #60a5fa !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+}
+
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100,
+html.dark .bg-emerald-200,
+html.dark [class*="bg-emerald-50"],
+html.dark [class*="bg-emerald-100"] {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.35) !important;
+}
+
+html.dark .bg-purple-50,
+html.dark .bg-purple-100,
+html.dark .bg-purple-200,
+html.dark [class*="bg-purple-50"],
+html.dark [class*="bg-purple-100"] {
+  background-color: rgba(147, 51, 234, 0.16) !important;
+  color: #c084fc !important;
+  border-color: rgba(192, 132, 252, 0.35) !important;
+}
+
+html.dark .bg-amber-50,
+html.dark .bg-amber-100,
+html.dark .bg-amber-200,
+html.dark [class*="bg-amber-50"],
+html.dark [class*="bg-amber-100"] {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+html.dark .bg-rose-50,
+html.dark .bg-rose-100,
+html.dark .bg-rose-200,
+html.dark [class*="bg-rose-50"],
+html.dark [class*="bg-rose-100"] {
+  background-color: rgba(219, 39, 119, 0.16) !important;
+  color: #f472b6 !important;
+  border-color: rgba(244, 114, 182, 0.35) !important;
+}
+
+html.dark .bg-red-50,
+html.dark .bg-red-100,
+html.dark .bg-red-200,
+html.dark [class*="bg-red-50"],
+html.dark [class*="bg-red-100"] {
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+}
+
+html.dark .bg-sky-50,
+html.dark .bg-sky-100,
+html.dark .bg-sky-200,
+html.dark [class*="bg-sky-50"],
+html.dark [class*="bg-sky-100"] {
+  background-color: rgba(14, 165, 233, 0.16) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+html.dark .bg-teal-50,
+html.dark .bg-teal-100,
+html.dark .bg-teal-200,
+html.dark [class*="bg-teal-50"] {
+  background-color: rgba(20, 184, 166, 0.16) !important;
+  color: #2dd4bf !important;
+  border-color: rgba(45, 212, 191, 0.35) !important;
+}
+
+html.dark .bg-indigo-50,
+html.dark .bg-indigo-100,
+html.dark .bg-indigo-200,
+html.dark [class*="bg-indigo-50"] {
+  background-color: rgba(99, 102, 241, 0.16) !important;
+  color: #818cf8 !important;
+  border-color: rgba(129, 140, 248, 0.35) !important;
+}
+
+/* 12. Tables in Dark Mode */
+html.dark th {
+  background-color: #0c0d12 !important;
+  color: #94a3b8 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark td {
+  color: #cbd5e1 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark tr:hover td {
+  background-color: #1a1c26 !important;
+}
+
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-300 > :not([hidden]) ~ :not([hidden]),
+html.dark [class*="divide-slate-"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* 13. Primary Buttons & Refined Gradient Accents (Electric Blue -> Indigo -> Violet -> Subtle Pink) */
+html.dark .bg-brand-600 {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 45%, #7c3aed 80%, #db2777 100%) !important;
+  box-shadow: 0 4px 15px -2px rgba(37, 99, 235, 0.45) !important;
+  color: #ffffff !important;
+}
+
+html.dark .bg-brand-600:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 45%, #6d28d9 80%, #be185d 100%) !important;
+  box-shadow: 0 6px 20px -2px rgba(37, 99, 235, 0.6) !important;
+}
+
+/* 14. Custom Scrollbar in Dark Mode */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #1e202c;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #2d3042;
+}

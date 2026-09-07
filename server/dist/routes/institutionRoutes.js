@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const institutionController_1 = require("../controllers/institutionController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const router = (0, express_1.Router)();
+router.use(authMiddleware_1.authenticateUser);
+router.get('/dashboard', (0, authMiddleware_1.authorizeRoles)('INSTITUTION'), institutionController_1.getInstitutionDashboard);
+router.get('/students', (0, authMiddleware_1.authorizeRoles)('INSTITUTION'), institutionController_1.getInstitutionStudents);
+router.get('/academicians', (0, authMiddleware_1.authorizeRoles)('INSTITUTION'), institutionController_1.getInstitutionAcademicians);
+router.get('/portfolio/pending', (0, authMiddleware_1.authorizeRoles)('INSTITUTION', 'ACADEMICIAN'), institutionController_1.getPendingPortfolioItems);
+router.post('/portfolio/verify', (0, authMiddleware_1.authorizeRoles)('INSTITUTION', 'ACADEMICIAN'), institutionController_1.verifyPortfolioItem);
+exports.default = router;

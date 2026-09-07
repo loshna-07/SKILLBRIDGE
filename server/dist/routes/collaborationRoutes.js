@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const collaborationController_1 = require("../controllers/collaborationController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const router = (0, express_1.Router)();
+router.use(authMiddleware_1.authenticateUser);
+router.get('/mentorship', collaborationController_1.getMentorshipPrograms);
+router.post('/mentorship', (0, authMiddleware_1.authorizeRoles)('INDUSTRY'), collaborationController_1.createMentorshipProgram);
+router.post('/mentorship/:id/request', (0, authMiddleware_1.authorizeRoles)('STUDENT'), collaborationController_1.requestMentorship);
+router.get('/mentorship/requests', collaborationController_1.getMentorshipRequests);
+router.put('/mentorship/requests/:id/respond', (0, authMiddleware_1.authorizeRoles)('INDUSTRY'), collaborationController_1.respondMentorshipRequest);
+exports.default = router;
