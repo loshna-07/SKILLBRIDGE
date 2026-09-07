@@ -7,6 +7,7 @@ const router = (0, express_1.Router)();
 router.use(authMiddleware_1.authenticateUser);
 router.get('/', assessmentController_1.getAssessments);
 router.get('/categories', assessmentController_1.getSkillCategories);
+router.get('/skills', assessmentController_1.getSkills);
 router.get('/:id', assessmentController_1.getAssessmentById);
 router.post('/:id/submit', (0, authMiddleware_1.authorizeRoles)('STUDENT'), assessmentController_1.submitAssessment);
 // Administrative / Academic / Institution creating assessments & skills

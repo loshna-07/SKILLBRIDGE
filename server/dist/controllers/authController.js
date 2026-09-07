@@ -3,11 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMe = exports.login = exports.register = void 0;
+exports.logout = exports.getMe = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_1 = __importDefault(require("../config/db"));
-const JWT_SECRET = process.env.JWT_SECRET || 'skillbridge_secret_fallback_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'skillbridge_secret_fallback_key';
 const generateToken = (userId, email, role) => {
     return jsonwebtoken_1.default.sign({ id: userId, email, role }, JWT_SECRET, { expiresIn: '7d' });
 };
@@ -244,3 +244,8 @@ const getMe = async (req, res) => {
     }
 };
 exports.getMe = getMe;
+// Logout
+const logout = async (req, res) => {
+    res.json({ message: 'Logout successful.' });
+};
+exports.logout = logout;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
-import { Application } from '../../types';
+import { Application, Opportunity, StudentProfile, StudentSkillProfile } from '../../types';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
@@ -27,13 +27,53 @@ import {
   Zap,
 } from 'lucide-react';
 
+export interface AssessmentSkillBreakdown {
+  skillId?: string;
+  skillName: string;
+  earnedMarks?: number;
+  totalMarks?: number;
+  scorePercentage: number;
+  percentage?: number;
+  proficiencyLevel: 'BEGINNER' | 'DEVELOPING' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT' | string;
+  isStrength?: boolean;
+  isGap?: boolean;
+}
+
+export interface EnhancedApplicant extends Omit<Application, 'status'> {
+  status: 'APPLIED' | 'UNDER_REVIEW' | 'SHORTLISTED' | 'INTERVIEW' | 'SELECTED' | 'REJECTED' | 'WITHDRAWN' | 'ASSESSMENT_FAILED' | string;
+  assessmentScore?: number | null;
+  assessmentPassed?: boolean | null;
+  demonstratedStrengths?: string[];
+  skillGaps?: string[];
+  assessmentBreakdown?: AssessmentSkillBreakdown[] | null;
+  parsedBreakdown?: {
+    overallScore?: number;
+    passed?: boolean;
+    skillBreakdown?: AssessmentSkillBreakdown[];
+    strengths?: string[];
+    demonstratedStrengths?: string[];
+    developingSkills?: string[];
+    skillGaps?: string[];
+    compatibilityScore?: number;
+  } | null;
+  isEligible?: boolean;
+  ineligibleReasons?: string[];
+  student?: StudentProfile & {
+    skillProfiles?: StudentSkillProfile[];
+    assessmentAttempts?: any[];
+  };
+  opportunity?: Opportunity & {
+    applications?: Application[];
+  };
+}
+
 export const IndustryApplicants: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialOppId = searchParams.get('opportunityId') || 'ALL';
 
-  const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [opportunities, setOpportunities] = useState<(Opportunity & { applications?: Application[] })[]>([]);
   const [selectedOppId, setSelectedOppId] = useState(initialOppId);
-  const [applicants, setApplicants] = useState<any[]>([]);
+  const [applicants, setApplicants] = useState<EnhancedApplicant[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -45,11 +85,11 @@ export const IndustryApplicants: React.FC = () => {
 
   // Candidate Evaluation Deep Dive Modal
   const [evalModalOpen, setEvalModalOpen] = useState(false);
-  const [activeCandidateApp, setActiveCandidateApp] = useState<any | null>(null);
+  const [activeCandidateApp, setActiveCandidateApp] = useState<EnhancedApplicant | null>(null);
 
   // Interview modal
   const [interviewModalOpen, setInterviewModalOpen] = useState(false);
-  const [activeApp, setActiveApp] = useState<any | null>(null);
+  const [activeApp, setActiveApp] = useState<EnhancedApplicant | null>(null);
   const [scheduledAt, setScheduledAt] = useState('');
   const [meetingLink, setMeetingLink] = useState('https://meet.google.com/new');
   const [interviewNotes, setInterviewNotes] = useState('');
@@ -86,7 +126,7 @@ export const IndustryApplicants: React.FC = () => {
     fetchData();
   }, [selectedOppId, minScoreFilter, minMatchFilter, minCgpaFilter, statusFilter]);
 
-  const handleOpenStatusChange = (app: any, status: string) => {
+  const handleOpenStatusChange = (app: EnhancedApplicant, status: string) => {
     setActiveApp(app);
     setTargetStatus(status);
     setStatusNotes('Candidate moved to ' + status + ' stage.');
@@ -112,7 +152,7 @@ export const IndustryApplicants: React.FC = () => {
     }
   };
 
-  const handleOpenSchedule = (app: any) => {
+  const handleOpenSchedule = (app: EnhancedApplicant) => {
     setActiveApp(app);
     setScheduledAt('');
     setMeetingLink('https://meet.google.com/new');
@@ -138,7 +178,7 @@ export const IndustryApplicants: React.FC = () => {
     }
   };
 
-  const handleOpenEvaluation = (app: any) => {
+  const handleOpenEvaluation = (app: EnhancedApplicant) => {
     setActiveCandidateApp(app);
     setEvalModalOpen(true);
   };
@@ -178,7 +218,7 @@ export const IndustryApplicants: React.FC = () => {
     }
   };
 
-  const filteredApplicants = applicants.filter((app) => {
+  const filteredApplicants = applicants.filter((app: EnhancedApplicant) => {
     if (!search.trim()) return true;
     const s = search.toLowerCase();
     const nameMatch = (app.student?.fullName || '').toLowerCase().includes(s);
@@ -211,7 +251,7 @@ export const IndustryApplicants: React.FC = () => {
           className="px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm"
         >
           <option value="ALL">All Postings ({applicants.length} Candidates)</option>
-          {opportunities.map((o) => (
+          {opportunities.map((o: Opportunity & { applications?: Application[] }) => (
             <option key={o.id} value={o.id}>
               {o.title} ({o.applications?.length || 0} applicants)
             </option>
@@ -297,11 +337,11 @@ export const IndustryApplicants: React.FC = () => {
         </div>
       ) : filteredApplicants.length > 0 ? (
         <div className="space-y-4">
-          {filteredApplicants.map((app) => {
+          {filteredApplicants.map((app: EnhancedApplicant) => {
             const hasAssessment = app.assessmentScore != null;
             const isPassed = app.assessmentPassed;
-            const demonstratedStrengths = app.demonstratedStrengths || [];
-            const skillGaps = app.skillGaps || [];
+            const demonstratedStrengths: string[] = app.demonstratedStrengths || [];
+            const skillGaps: string[] = app.skillGaps || [];
 
             return (
               <div
@@ -371,7 +411,7 @@ export const IndustryApplicants: React.FC = () => {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {demonstratedStrengths.length > 0 ? (
-                          demonstratedStrengths.map((st, idx) => (
+                          demonstratedStrengths.map((st: string, idx: number) => (
                             <span
                               key={idx}
                               className="text-[10px] font-semibold bg-emerald-100/70 text-emerald-900 px-2 py-0.5 rounded-lg"
@@ -395,7 +435,7 @@ export const IndustryApplicants: React.FC = () => {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {skillGaps.length > 0 ? (
-                          skillGaps.map((gap, idx) => (
+                          skillGaps.map((gap: string, idx: number) => (
                             <span
                               key={idx}
                               className="text-[10px] font-semibold bg-amber-100/70 text-amber-900 px-2 py-0.5 rounded-lg"
@@ -565,9 +605,9 @@ export const IndustryApplicants: React.FC = () => {
                 Evaluated Skill Competency Breakdown
               </h4>
 
-              {activeCandidateApp.assessmentBreakdown && Array.isArray(activeCandidateApp.assessmentBreakdown) ? (
+              {(activeCandidateApp.assessmentBreakdown && Array.isArray(activeCandidateApp.assessmentBreakdown)) ? (
                 <div className="space-y-2">
-                  {activeCandidateApp.assessmentBreakdown.map((sb, idx) => (
+                  {activeCandidateApp.assessmentBreakdown.map((sb: AssessmentSkillBreakdown, idx: number) => (
                     <div
                       key={idx}
                       className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2"
@@ -584,7 +624,48 @@ export const IndustryApplicants: React.FC = () => {
                           </span>
                         </div>
                         <div className="text-xs font-bold text-slate-700">
-                          {sb.scorePercentage}% ({sb.earnedMarks} / {sb.totalMarks} Marks)
+                          {sb.scorePercentage}% {sb.earnedMarks != null && sb.totalMarks != null ? `(${sb.earnedMarks} / ${sb.totalMarks} Marks)` : ''}
+                        </div>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            sb.scorePercentage >= 75
+                              ? 'bg-emerald-500'
+                              : sb.scorePercentage >= 60
+                              ? 'bg-sky-500'
+                              : sb.scorePercentage >= 40
+                              ? 'bg-amber-500'
+                              : 'bg-rose-500'
+                          }`}
+                          style={{ width: sb.scorePercentage + '%' }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (activeCandidateApp.parsedBreakdown?.skillBreakdown && Array.isArray(activeCandidateApp.parsedBreakdown.skillBreakdown)) ? (
+                <div className="space-y-2">
+                  {activeCandidateApp.parsedBreakdown.skillBreakdown.map((sb: AssessmentSkillBreakdown, idx: number) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900">{sb.skillName}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getProficiencyBadgeClass(
+                              sb.proficiencyLevel
+                            )}`}
+                          >
+                            {sb.proficiencyLevel}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-700">
+                          {sb.scorePercentage}% {sb.earnedMarks != null && sb.totalMarks != null ? `(${sb.earnedMarks} / ${sb.totalMarks} Marks)` : ''}
                         </div>
                       </div>
 
@@ -621,7 +702,7 @@ export const IndustryApplicants: React.FC = () => {
                   Demonstrated Competencies
                 </h5>
                 <ul className="space-y-1">
-                  {(activeCandidateApp.demonstratedStrengths || []).map((s, idx) => (
+                  {(activeCandidateApp.demonstratedStrengths || []).map((s: string, idx: number) => (
                     <li key={idx} className="text-xs text-emerald-800 flex items-center gap-1.5 font-medium">
                       &bull; {s}
                     </li>
@@ -638,7 +719,7 @@ export const IndustryApplicants: React.FC = () => {
                   Identified Skill Gaps
                 </h5>
                 <ul className="space-y-1">
-                  {(activeCandidateApp.skillGaps || []).map((g, idx) => (
+                  {(activeCandidateApp.skillGaps || []).map((g: string, idx: number) => (
                     <li key={idx} className="text-xs text-amber-800 flex items-center gap-1.5 font-medium">
                       &bull; {g}
                     </li>

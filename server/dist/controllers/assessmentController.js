@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSkill = exports.createSkillCategory = exports.getSkillCategories = exports.addQuestionToAssessment = exports.createAssessment = exports.submitAssessment = exports.getAssessmentById = exports.getAssessments = void 0;
+exports.getSkills = exports.createSkill = exports.createSkillCategory = exports.getSkillCategories = exports.addQuestionToAssessment = exports.createAssessment = exports.submitAssessment = exports.getAssessmentById = exports.getAssessments = void 0;
 const db_1 = __importDefault(require("../config/db"));
 // List All Assessments
 const getAssessments = async (req, res) => {
@@ -212,7 +212,8 @@ const submitAssessment = async (req, res) => {
                             proficiencyLevel,
                             scorePercentage: skillPercentage,
                             lastAssessedAt: new Date(),
-                            verified: passed,
+                            verified: false,
+                            verificationStatus: 'PENDING',
                         },
                     });
                 }
@@ -246,6 +247,12 @@ const submitAssessment = async (req, res) => {
             else
                 weaknesses.push(stats.name);
         }
+        const skillGaps = weaknesses.map((w) => ({
+            skill: w,
+            gapType: 'PERFORMANCE_GAP',
+            severity: 'HIGH',
+            description: `Assessed score is below industry baseline (60%). Additional training or retake recommended.`,
+        }));
         res.status(201).json({
             message: 'Assessment submitted successfully.',
             attemptId: attempt.id,
@@ -255,6 +262,7 @@ const submitAssessment = async (req, res) => {
             passed,
             strengths,
             weaknesses,
+            skillGaps,
             skillBreakdown,
         });
     }
@@ -386,3 +394,16 @@ const createSkill = async (req, res) => {
     }
 };
 exports.createSkill = createSkill;
+const getSkills = async (_req, res) => {
+    try {
+        const skills = await db_1.default.skill.findMany({
+            include: { category: true },
+            orderBy: { name: 'asc' },
+        });
+        res.json(skills);
+    }
+    catch (error) {
+        res.status(500).json({ message: error.message || 'Failed to fetch skills.' });
+    }
+};
+exports.getSkills = getSkills;

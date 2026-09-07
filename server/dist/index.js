@@ -17,7 +17,12 @@ const institutionRoutes_1 = __importDefault(require("./routes/institutionRoutes"
 const collaborationRoutes_1 = __importDefault(require("./routes/collaborationRoutes"));
 const statsRoutes_1 = __importDefault(require("./routes/statsRoutes"));
 const uploadRoutes_1 = __importDefault(require("./routes/uploadRoutes"));
+const matchingRoutes_1 = __importDefault(require("./routes/matchingRoutes"));
+const industryRoutes_1 = __importDefault(require("./routes/industryRoutes"));
+const courseRoutes_1 = __importDefault(require("./routes/courseRoutes"));
+const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
 const errorHandler_1 = require("./middleware/errorHandler");
+const db_service_1 = require("./db_service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -40,16 +45,30 @@ app.use('/api/student', studentRoutes_1.default);
 app.use('/api/opportunities', opportunityRoutes_1.default);
 app.use('/api/assessments', assessmentRoutes_1.default);
 app.use('/api/learning', learningRoutes_1.default);
+app.use('/api/matching', matchingRoutes_1.default);
+app.use('/api/industry', industryRoutes_1.default);
 app.use('/api/academician', academicianRoutes_1.default);
 app.use('/api/institution', institutionRoutes_1.default);
 app.use('/api/collaboration', collaborationRoutes_1.default);
+app.use('/api/collaborations', collaborationRoutes_1.default);
+app.use('/api/courses', courseRoutes_1.default);
+app.use('/api/notifications', notificationRoutes_1.default);
 app.use('/api/stats', statsRoutes_1.default);
 app.use('/api/upload', uploadRoutes_1.default);
 // Error Handler
 app.use(errorHandler_1.errorHandler);
-app.listen(PORT, () => {
-    console.log(`=========================================`);
-    console.log(`SkillBridge Backend Running on port ${PORT}`);
-    console.log(`API Health: http://localhost:${PORT}/api/health`);
-    console.log(`=========================================`);
-});
+async function start() {
+    try {
+        await (0, db_service_1.startDatabase)();
+    }
+    catch (err) {
+        console.warn('[DB Notice]:', err.message);
+    }
+    app.listen(PORT, () => {
+        console.log(`=========================================`);
+        console.log(`SkillBridge Backend Running on port ${PORT}`);
+        console.log(`API Health: http://localhost:${PORT}/api/health`);
+        console.log(`=========================================`);
+    });
+}
+start();
