@@ -1,0 +1,70 @@
+# =========================================================================
+# SkillBridge Comprehensive Git Ignore
+# =========================================================================
+
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Environment & Secret Files (NEVER commit secrets!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!*.env.example
+
+# Local Database Directories & Engine Data
+.pgdata/
+**/.pgdata/
+*.sqlite
+*.sqlite3
+*.db
+postmaster.pid
+*.pid
+
+# Production Build Outputs
+dist/
+**/dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+
+# Uploaded Files & Temporary Assets
+server/uploads/*
+!server/uploads/.gitkeep
+uploads/
+**/uploads/*
+!**/uploads/.gitkeep
+
+# Scratch Scripts, Temp Data & Agent Logs
+scratch/
+.system_generated/
+tmp/
+temp/
+
+# Logs & Debug Output
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Vite, TypeScript & Cache
+.vite/
+.turbo/
+.cache/
+
+# IDE & Operating System Files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

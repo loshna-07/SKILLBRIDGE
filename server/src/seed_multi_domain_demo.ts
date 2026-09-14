@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import prisma from './config/db';
 import clearDemoData from './clear_demo_data';
+import { seedCareerRolesAndDependencies } from './seed_career_roles';
+import { seedEvidenceAndPartnerships } from './seed_evidence_and_partnerships';
 
 async function seedMultiDomainDemo() {
   console.log('==================================================================');
@@ -125,6 +127,116 @@ async function seedMultiDomainDemo() {
       },
     });
     skillMap.set(s.name, created.id);
+  }
+
+  // ---------------------------------------------------------
+  // 1b. Granular Skill Taxonomy (Sub-Skills & Topics)
+  // ---------------------------------------------------------
+  console.log('1b. Seeding Hierarchical Granular Sub-Skills & Topics...');
+
+  const subSkillsData = [
+    // Ayurveda: Ayurvedic Fundamentals
+    { skill: 'Ayurvedic Fundamentals', name: 'Tridosha Theory', topics: ['Vata Dosha Characteristics', 'Pitta Diagnostics', 'Kapha Imbalances', 'Prakriti Assessment'] },
+    { skill: 'Ayurvedic Fundamentals', name: 'Dhatu Siddhanta', topics: ['Rasa & Rakta Poshana', 'Mamsa & Medas Dynamics', 'Asthi & Majja Metabolism', 'Shukra & Ojas Transformation'] },
+    { skill: 'Ayurvedic Fundamentals', name: 'Srotas & Agni', topics: ['Jatharagni Functions', 'Dhatwagni Dynamics', 'Ama Pathology & Formation', 'Srotodushti Evaluation'] },
+
+    // Ayurveda: Ayurvedic Diagnosis
+    { skill: 'Ayurvedic Diagnosis', name: 'Nadi Pariksha', topics: ['Radial Pulse Gati Analysis', 'Dosha Pulse Rhythm & Frequency', 'Deep vs Superficial Pulse Levels', 'Organ Radial Pulse Mapping'] },
+    { skill: 'Ayurvedic Diagnosis', name: 'Ashtavidha Pariksha', topics: ['Mutra & Taila Bindu Pariksha', 'Mala & Jihwa Diagnostics', 'Shabda & Sparsha Examination', 'Druk & Akruti Assessment'] },
+    { skill: 'Ayurvedic Diagnosis', name: 'Roganidana & Samprapti', topics: ['Nidana Panchaka Framework', 'Purvarupa Early Detection', 'Rupa Differential Symptoms', 'Upashaya Diagnostic Testing'] },
+
+    // Ayurveda: Panchakarma
+    { skill: 'Panchakarma', name: 'Purvakarma Protocols', topics: ['Internal & External Snehana', 'Swedana Sudation Protocols', 'Deepana & Pachana Regimen', 'Pathya Diet Preparation'] },
+    { skill: 'Panchakarma', name: 'Procedure Knowledge', topics: ['Vamana Vidhi Execution', 'Virechana Protocol Management', 'Niruha & Anuvasana Basti', 'Nasya Therapy Administration', 'Raktamokshana Bloodletting'] },
+    { skill: 'Panchakarma', name: 'Safety Protocols', topics: ['Panchakarma Complication Management', 'Samsarjana Krama Dietetics', 'Post-treatment Vitals Monitoring', 'Contraindication Patient Screening'] },
+
+    // Ayurveda: Clinical Research
+    { skill: 'Clinical Research', name: 'Research Methodology', topics: ['Hypothesis Formulation in AYUSH', 'RCT & Controlled Study Design', 'Control Cohort Selection', 'Blinding & Randomization Techniques'] },
+    { skill: 'Clinical Research', name: 'AYUSH GCP & Ethics', topics: ['Institutional Ethics Committee (IEC) Approvals', 'CTRI Trial Registration Compliance', 'Informed Consent Form (ICF) Protocols', 'Adverse Event (AE/SAE) Monitoring'] },
+    { skill: 'Clinical Research', name: 'Data Collection', topics: ['Case Record Form (CRF) Design', 'Clinical Data Integrity & Verification', 'Audit Trail Maintenance', 'Vital Telemetry & Metric Logging'] },
+
+    // Ayurveda: Scientific Writing
+    { skill: 'Scientific Writing', name: 'Case Reporting & CARE Guidelines', topics: ['CARE Checklist Verification', 'Patient Clinical Narrative', 'Diagnostic Timeline Documentation', 'Therapeutic Intervention Rationale'] },
+    { skill: 'Scientific Writing', name: 'Manuscript Drafting', topics: ['Standard IMRaD Manuscript Layout', 'AYUSH Systematic Literature Review', 'Statistical Significance Discussion', 'Peer-Review Response & Revision'] },
+
+    // Ayurveda: Digital Health
+    { skill: 'Digital Health', name: 'EHR & Health Informatics', topics: ['NAMASTE Portal Diagnostic Codes', 'ICD-11 TM2 Ayurvedic Taxonomy', 'AYUSH Telemedicine Protocols', 'Electronic Health Record Privacy & HIPAA'] },
+    { skill: 'Digital Health', name: 'Vital Telemetry & Monitoring', topics: ['Continuous Wearable Telemetry', 'Clinical Dashboard Visualization', 'Real-Time Alert Thresholds', 'Longitudinal Treatment Analytics'] },
+
+    // Ayurveda: Biostatistics
+    { skill: 'Biostatistics', name: 'Descriptive & Inferential Stats', topics: ['Mean, Median, Standard Deviation', 'p-value & Statistical Significance', 'Confidence Intervals (95% CI)', 'Sample Size Power Calculations'] },
+    { skill: 'Biostatistics', name: 'Clinical Trial Analytics', topics: ['Paired & Unpaired t-Tests', 'Chi-Square & Fisher Exact Tests', 'ANOVA for Multi-arm Studies', 'Outcome Correlation & Regression'] },
+
+    // Ayurveda: Dravyaguna
+    { skill: 'Dravyaguna', name: 'Rasa Panchaka', topics: ['Rasa Classification', 'Guna Analysis', 'Virya Potency Determination', 'Vipaka & Prabhava Action'] },
+    { skill: 'Dravyaguna', name: 'Herbal Identification', topics: ['Botanical Field Taxonomy', 'Herbarium Specimen Preparation', 'Crude Drug Macroscopy', 'Microscopic Standardization'] },
+
+    // Ayurveda: Rasashastra
+    { skill: 'Rasashastra', name: 'Shodhana & Marana', topics: ['Mineral Purification (Shodhana)', 'Bhasma Incineration (Marana)', 'Puta Grading & Heat Controls', 'Nanoparticle Verification & Namburi Phased Spot Test'] },
+
+    // Engineering: C
+    { skill: 'C', name: 'Core Syntax & Logic', topics: ['Variables & Primitive Types', 'Arithmetic & Bitwise Operators', 'Control Flow & Conditionals', 'Loops & Iterative Constructs'] },
+    { skill: 'C', name: 'Pointers & Memory', topics: ['Pointer Syntax & Dereferencing', 'Dynamic Memory (malloc/calloc/free)', 'Pointer Arithmetic', 'Memory Leak Prevention'] },
+    { skill: 'C', name: 'Data Structures', topics: ['Multi-dimensional Arrays', 'Structs, Unions & Enums', 'Singly & Doubly Linked Lists', 'Bitwise Flags & Bitmasks'] },
+
+    // Engineering: Embedded C
+    { skill: 'Embedded C', name: 'Register Configuration', topics: ['GPIO Port & Pin Config', 'Bitwise Register Masking', 'Direction Registers (DDR)', 'Pull-up / Pull-down Resistor Config'] },
+    { skill: 'Embedded C', name: 'Peripherals & Timers', topics: ['Hardware Timers & PWM Generation', 'ADC Conversion & Voltage Sampling', 'UART Serial Communication', 'I2C & SPI Bus Protocols'] },
+    { skill: 'Embedded C', name: 'Interrupts & Watchdog', topics: ['Interrupt Service Routines (ISR)', 'Interrupt Priority & Nested Vectors', 'Watchdog Timer Reset Protocols', 'Low-Power Sleep Modes'] },
+
+    // Engineering: IoT
+    { skill: 'IoT', name: 'IoT Protocols', topics: ['MQTT Publish / Subscribe Architecture', 'HTTP & RESTful Telemetry APIs', 'CoAP Lightweight Protocol', 'WebSocket Live Feeds'] },
+    { skill: 'IoT', name: 'Edge Telemetry', topics: ['Sensor Data Streaming', 'Cloud Ingestion Pipelines', 'Edge Filtering & Aggregation', 'Gateway Edge Architecture'] },
+
+    // Engineering: React
+    { skill: 'React', name: 'Components & Hooks', topics: ['Functional Components & JSX', 'useState & State Immutability', 'useEffect & Lifecycle Hooks', 'Custom Hooks & Custom Logic'] },
+    { skill: 'React', name: 'Architecture & State', topics: ['Component Hierarchy & Props Drilling', 'Context API & Global Reducers', 'React Router v6 Navigation', 'React Memo & Virtual DOM Performance'] },
+
+    // Engineering: Node.js
+    { skill: 'Node.js', name: 'Runtime & Asynchrony', topics: ['Node.js Event Loop Architecture', 'Promises & Async/Await Workflows', 'Streams & Buffers Processing', 'Node File System (fs/promises)'] },
+    { skill: 'Node.js', name: 'REST APIs & Security', topics: ['Express RESTful Routing', 'Custom Middleware & Logging', 'JWT Token Authentication', 'Input Validation & Error Handling'] },
+
+    // Commerce: Accounting
+    { skill: 'Accounting', name: 'Financial Statements', topics: ['Balance Sheet Compilation', 'Profit & Loss Statement (P&L)', 'Cash Flow Statement Analysis', 'Notes to Financial Accounts'] },
+    { skill: 'Accounting', name: 'Double Entry & Ledger', topics: ['Journal Entries & Debit/Credit', 'General Ledger Posting', 'Trial Balance Balancing', 'Bank Account Reconciliation'] },
+
+    // Commerce: Financial Analysis
+    { skill: 'Financial Analysis', name: 'Ratio Analysis', topics: ['Liquidity & Current Ratios', 'Profitability & EBITDA Margins', 'Solvency & Debt-to-Equity', 'Operating Efficiency Metrics'] },
+    { skill: 'Financial Analysis', name: 'Corporate Valuation', topics: ['Discounted Cash Flow (DCF) Modeling', 'WACC Calculation', 'Comparable Multiples Valuation', 'NPV & IRR Investment Appraisal'] },
+
+    // Commerce: Digital Marketing
+    { skill: 'Digital Marketing', name: 'SEO & Performance', topics: ['Keyword Research & Intent', 'On-Page & Meta Tag Optimization', 'Google Search Console Audits', 'Technical SEO & Page Speed'] },
+    { skill: 'Digital Marketing', name: 'Paid Campaigns & Analytics', topics: ['Google Search & Display Ads', 'Meta Ad Campaigns & Retargeting', 'Conversion Funnel Optimization', 'Multi-Touch Attribution Modeling'] },
+  ];
+
+  const subSkillMap = new Map<string, string>();
+  for (const item of subSkillsData) {
+    const skillId = skillMap.get(item.skill);
+    if (!skillId) continue;
+    const sub = await prisma.skillSubSkill.upsert({
+      where: { skillId_name: { skillId, name: item.name } },
+      update: {},
+      create: {
+        skillId,
+        name: item.name,
+        description: `Granular competency in ${item.name} under ${item.skill}`,
+      },
+    });
+    subSkillMap.set(`${item.skill}::${item.name}`, sub.id);
+    subSkillMap.set(item.name, sub.id);
+
+    for (let i = 0; i < item.topics.length; i++) {
+      await prisma.skillTopic.upsert({
+        where: { subSkillId_name: { subSkillId: sub.id, name: item.topics[i] } },
+        update: { orderIndex: i },
+        create: {
+          subSkillId: sub.id,
+          name: item.topics[i],
+          orderIndex: i,
+          description: `Core topic: ${item.topics[i]}`,
+        },
+      });
+    }
   }
 
   // ---------------------------------------------------------
@@ -847,6 +959,14 @@ async function seedMultiDomainDemo() {
   });
 
   // Helper to add student skills
+  const getProficiencyFromScore = (score: number) => {
+    if (score >= 90) return 'EXPERT';
+    if (score >= 75) return 'ADVANCED';
+    if (score >= 60) return 'INTERMEDIATE';
+    if (score >= 40) return 'DEVELOPING';
+    return 'BEGINNER';
+  };
+
   const addStudentSkill = async (studentId: string, skillName: string, level: string, score: number) => {
     const sId = skillMap.get(skillName);
     if (!sId) return;
@@ -863,12 +983,112 @@ async function seedMultiDomainDemo() {
     });
   };
 
+  const addStudentSubSkill = async (studentId: string, subSkillName: string, score: number, questionsAttempted = 10, questionsCorrect = 8) => {
+    const subId = subSkillMap.get(subSkillName);
+    if (!subId) return;
+    const prof = getProficiencyFromScore(score);
+    await prisma.studentSubSkillScore.upsert({
+      where: { studentId_subSkillId: { studentId, subSkillId: subId } },
+      update: { scorePercentage: score, proficiencyLevel: prof, questionsAttempted, questionsCorrect, lastAssessedAt: new Date() },
+      create: {
+        studentId,
+        subSkillId: subId,
+        scorePercentage: score,
+        proficiencyLevel: prof,
+        questionsAttempted,
+        questionsCorrect,
+        lastAssessedAt: new Date(),
+      },
+    });
+  };
+
+  const addSnapshot = async (studentId: string, subSkillName: string, score: number, delta: number, daysAgo: number) => {
+    const subId = subSkillMap.get(subSkillName);
+    if (!subId) return;
+    const recordedAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+    await prisma.skillProgressSnapshot.create({
+      data: {
+        studentId,
+        subSkillId: subId,
+        scorePercentage: score,
+        proficiencyLevel: getProficiencyFromScore(score),
+        deltaPercentage: delta,
+        recordedAt,
+      },
+    });
+  };
+
   // Assign Student Skills
   await addStudentSkill(stuAnanya.studentProfile.id, 'Ayurvedic Fundamentals', 'EXPERT', 90);
   await addStudentSkill(stuAnanya.studentProfile.id, 'Ayurvedic Diagnosis', 'ADVANCED', 85);
   await addStudentSkill(stuAnanya.studentProfile.id, 'Panchakarma', 'ADVANCED', 80);
   await addStudentSkill(stuAnanya.studentProfile.id, 'Abhyanga', 'ADVANCED', 80);
   await addStudentSkill(stuAnanya.studentProfile.id, 'Swedana', 'BEGINNER', 40);
+  await addStudentSkill(stuAnanya.studentProfile.id, 'Clinical Research', 'DEVELOPING', 55);
+  await addStudentSkill(stuAnanya.studentProfile.id, 'Scientific Writing', 'DEVELOPING', 52);
+  await addStudentSkill(stuAnanya.studentProfile.id, 'Digital Health', 'INTERMEDIATE', 65);
+  await addStudentSkill(stuAnanya.studentProfile.id, 'Biostatistics', 'DEVELOPING', 45);
+
+  // Set Ananya's Target Career
+  await prisma.studentProfile.update({
+    where: { id: stuAnanya.studentProfile.id },
+    data: { targetCareer: 'Panchakarma Clinical Specialist' },
+  });
+
+  // Granular Sub-Skill Scores for Ananya Iyer:
+  // Strong Skills (>=75%):
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Procedure Knowledge', 88, 15, 13);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Safety Protocols', 81, 10, 8);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Purvakarma Protocols', 85, 12, 10);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Tridosha Theory', 92, 15, 14);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Dhatu Siddhanta', 88, 12, 11);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Nadi Pariksha', 85, 14, 12);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Ashtavidha Pariksha', 82, 10, 8);
+
+  // Improvement Areas (60-74%):
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Data Collection', 62, 10, 6);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'EHR & Health Informatics', 65, 10, 6);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Vital Telemetry & Monitoring', 68, 10, 7);
+
+  // Critical Gaps (<60%):
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Research Methodology', 48, 12, 6);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Case Reporting & CARE Guidelines', 52, 10, 5);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Manuscript Drafting', 50, 10, 5);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'AYUSH GCP & Ethics', 58, 10, 6);
+  await addStudentSubSkill(stuAnanya.studentProfile.id, 'Descriptive & Inferential Stats', 45, 10, 4);
+
+  // Growth Snapshots for Ananya (Showing historical learning progress)
+  await addSnapshot(stuAnanya.studentProfile.id, 'Procedure Knowledge', 60, 0, 60);
+  await addSnapshot(stuAnanya.studentProfile.id, 'Procedure Knowledge', 75, 15, 30);
+  await addSnapshot(stuAnanya.studentProfile.id, 'Procedure Knowledge', 88, 28, 0);
+
+  await addSnapshot(stuAnanya.studentProfile.id, 'Safety Protocols', 55, 0, 60);
+  await addSnapshot(stuAnanya.studentProfile.id, 'Safety Protocols', 70, 15, 30);
+  await addSnapshot(stuAnanya.studentProfile.id, 'Safety Protocols', 81, 26, 0);
+
+  await addSnapshot(stuAnanya.studentProfile.id, 'Research Methodology', 35, 0, 60);
+  await addSnapshot(stuAnanya.studentProfile.id, 'Research Methodology', 42, 7, 30);
+  await addSnapshot(stuAnanya.studentProfile.id, 'Research Methodology', 48, 13, 0);
+
+  // Granular Sub-Skills for Engineering Student (Priya Sharma - IoT/Embedded)
+  await addStudentSubSkill(stuPriya.studentProfile.id, 'Core Syntax & Logic', 92, 15, 14);
+  await addStudentSubSkill(stuPriya.studentProfile.id, 'Pointers & Memory', 85, 12, 10);
+  await addStudentSubSkill(stuPriya.studentProfile.id, 'Register Configuration', 90, 15, 14);
+  await addStudentSubSkill(stuPriya.studentProfile.id, 'Peripherals & Timers', 88, 14, 12);
+  await addStudentSubSkill(stuPriya.studentProfile.id, 'IoT Protocols', 85, 12, 10);
+  await addStudentSubSkill(stuPriya.studentProfile.id, 'Edge Telemetry', 78, 10, 8);
+
+  // Granular Sub-Skills for CS Student (Rahul Varma - Full Stack)
+  await addStudentSubSkill(stuRahul.studentProfile.id, 'Components & Hooks', 94, 20, 19);
+  await addStudentSubSkill(stuRahul.studentProfile.id, 'Architecture & State', 88, 15, 13);
+  await addStudentSubSkill(stuRahul.studentProfile.id, 'Runtime & Asynchrony', 85, 15, 13);
+  await addStudentSubSkill(stuRahul.studentProfile.id, 'REST APIs & Security', 85, 12, 10);
+
+  // Granular Sub-Skills for Commerce Student (Sneha Patel - Financial Analyst)
+  await addStudentSubSkill(stuSneha.studentProfile.id, 'Financial Statements', 95, 20, 19);
+  await addStudentSubSkill(stuSneha.studentProfile.id, 'Double Entry & Ledger', 92, 15, 14);
+  await addStudentSubSkill(stuSneha.studentProfile.id, 'Ratio Analysis', 96, 18, 17);
+  await addStudentSubSkill(stuSneha.studentProfile.id, 'Corporate Valuation', 90, 14, 13);
 
   await addStudentSkill(stuArjun.studentProfile.id, 'Kayachikitsa', 'ADVANCED', 85);
   await addStudentSkill(stuArjun.studentProfile.id, 'Clinical Research', 'ADVANCED', 80);
@@ -918,6 +1138,325 @@ async function seedMultiDomainDemo() {
   await addStudentSkill(stuAditya.studentProfile.id, 'Business Management', 'ADVANCED', 80);
 
   // ---------------------------------------------------------
+  // 5b. Student Digital Portfolio: Certifications, Marksheets, Achievements, Projects
+  // ---------------------------------------------------------
+  console.log('5b. Seeding Student Verified Portfolios (Certificates, Academic Reports, Achievements, Projects)...');
+
+  // --- Ananya Iyer (Ayurveda) ---
+  // Certifications
+  await prisma.studentCertification.createMany({
+    data: [
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'Advanced Panchakarma Practice & Clinical Detoxification',
+        certificateType: 'Specialization',
+        issuingOrganization: 'Dhanvantari Institute of Ayurveda',
+        courseName: 'Advanced Clinical Panchakarma Specialization',
+        category: 'Clinical Practice',
+        skillsCovered: 'Panchakarma, Abhyanga, Ayurvedic Fundamentals',
+        issueDate: '2024-03-15',
+        expiryDate: '2029-03-15',
+        credentialId: 'DIA-PK-2024-8841',
+        credentialUrl: 'https://credentials.dhanvantari.org/verify/DIA-PK-2024-8841',
+        description: 'Comprehensive 120-hour clinical hands-on certification in Ashtavidha Pariksha, classical Vamana, Virechana, and Basti protocol administration.',
+        certificateDocUrl: '/uploads/sample_panchakarma_cert.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2024-03-20'),
+        remarks: 'Official training certificate verified against institutional clinical logbook.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'Nadi Pariksha Masterclass & Pulse Diagnostics',
+        certificateType: 'Professional Workshop',
+        issuingOrganization: 'All India Institute of Ayurveda',
+        courseName: 'Traditional Pulse Diagnosis Workshop',
+        category: 'Diagnostics',
+        skillsCovered: 'Ayurvedic Diagnosis, Patient Assessment',
+        issueDate: '2024-06-10',
+        credentialId: 'AIIA-ND-2024-1029',
+        credentialUrl: 'https://aiia.gov.in/verify/ND-2024-1029',
+        description: 'Intensive workshop on Nadi gati variations, doshic imbalance detection, and clinical prognosis correlation.',
+        certificateDocUrl: '/uploads/sample_nadi_cert.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2024-06-15'),
+        remarks: 'Credential validated through AIIA digital registry.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'Ayurvedic Pharmacognosy & Botanical Standardization',
+        certificateType: 'Online Course',
+        issuingOrganization: 'National Medicinal Plants Board',
+        courseName: 'Herbal Drug Identification & Standardization',
+        category: 'Pharmacology',
+        skillsCovered: 'Dravyaguna, Medicinal Plants, Herbal Medicine',
+        issueDate: '2024-08-20',
+        credentialId: 'NMPB-2024-4412',
+        description: 'Field-based taxonomic identification of 200+ medicinal plants and phytochemical extraction techniques.',
+        certificateDocUrl: '/uploads/sample_herbal_cert.pdf',
+        verificationStatus: 'PENDING', // Live pending item for demonstration
+      },
+    ],
+  });
+
+  // Academic Reports / Semester Marksheets
+  await prisma.studentAcademicReport.createMany({
+    data: [
+      {
+        studentId: stuAnanya.studentProfile.id,
+        reportType: 'SEMESTER_MARKSHEET',
+        academicYear: '2021-2022',
+        semester: 'Semester 1',
+        institution: 'Sri Dhanvantari Ayurveda College',
+        degree: 'BAMS',
+        department: 'Kayachikitsa / Panchakarma',
+        yearOfStudy: '1st Year',
+        cgpa: 8.70,
+        percentage: 84.5,
+        description: 'First semester official grade card: Anatomy (Rachana Sharira), Physiology (Kriya Sharira), and Sanskrit.',
+        documentUrl: '/uploads/ananya_sem1_gradesheet.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2022-06-10'),
+        remarks: 'Verified against university examination ledger.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        reportType: 'SEMESTER_MARKSHEET',
+        academicYear: '2021-2022',
+        semester: 'Semester 2',
+        institution: 'Sri Dhanvantari Ayurveda College',
+        degree: 'BAMS',
+        department: 'Kayachikitsa / Panchakarma',
+        yearOfStudy: '1st Year',
+        cgpa: 8.80,
+        percentage: 85.2,
+        description: 'Second semester official grade card with distinction in Ashtanga Hridaya.',
+        documentUrl: '/uploads/ananya_sem2_gradesheet.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2022-12-15'),
+        remarks: 'Verified by Dean of Academics.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        reportType: 'SEMESTER_MARKSHEET',
+        academicYear: '2022-2023',
+        semester: 'Semester 3',
+        institution: 'Sri Dhanvantari Ayurveda College',
+        degree: 'BAMS',
+        department: 'Kayachikitsa / Panchakarma',
+        yearOfStudy: '2nd Year',
+        cgpa: 8.90,
+        percentage: 86.8,
+        description: 'Third semester grade card: Dravyaguna Vigyana, Rasashastra, and Roganidana.',
+        documentUrl: '/uploads/ananya_sem3_gradesheet.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2023-06-20'),
+        remarks: 'Verified and attested by Examination Controller.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        reportType: 'SEMESTER_MARKSHEET',
+        academicYear: '2022-2023',
+        semester: 'Semester 4',
+        institution: 'Sri Dhanvantari Ayurveda College',
+        degree: 'BAMS',
+        department: 'Kayachikitsa / Panchakarma',
+        yearOfStudy: '2nd Year',
+        cgpa: 8.85,
+        percentage: 86.0,
+        description: 'Fourth semester grade card with clinical posting records in Roganidana.',
+        documentUrl: '/uploads/ananya_sem4_gradesheet.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2023-12-18'),
+        remarks: 'Attested copy verified.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        reportType: 'SEMESTER_MARKSHEET',
+        academicYear: '2023-2024',
+        semester: 'Semester 5',
+        institution: 'Sri Dhanvantari Ayurveda College',
+        degree: 'BAMS',
+        department: 'Kayachikitsa / Panchakarma',
+        yearOfStudy: '3rd Year',
+        cgpa: 8.95,
+        percentage: 87.5,
+        description: 'Fifth semester grade card: Charaka Samhita Uttarardha, Kayachikitsa Paper 1, Panchakarma.',
+        documentUrl: '/uploads/ananya_sem5_gradesheet.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2024-06-25'),
+        remarks: 'Official university transcript verified.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        reportType: 'SEMESTER_MARKSHEET',
+        academicYear: '2023-2024',
+        semester: 'Semester 6',
+        institution: 'Sri Dhanvantari Ayurveda College',
+        degree: 'BAMS',
+        department: 'Kayachikitsa / Panchakarma',
+        yearOfStudy: '3rd Year',
+        cgpa: 8.90,
+        percentage: 86.5,
+        description: 'Sixth semester grade card: Kayachikitsa Paper 2, Shalya Tantra, Shalakya Tantra.',
+        documentUrl: '/uploads/ananya_sem6_gradesheet.pdf',
+        verificationStatus: 'PENDING', // Live pending item for demonstration
+      },
+    ],
+  });
+
+  // Achievements & Honors
+  await prisma.studentAchievement.createMany({
+    data: [
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'National Ayurveda Student Research Presentation Award',
+        achievementType: 'Research / Publication',
+        issuer: 'Ministry of AYUSH & All India Ayurveda Congress',
+        level: 'National',
+        position: '1st Place / Gold Medal',
+        relatedSkills: 'Kayachikitsa, Ayurvedic Diagnosis, Clinical Research',
+        description: 'Awarded Gold Medal for presenting empirical clinical research on "Comparative Efficacy of Classical Basti in Chronic Rheumatic Manifestations".',
+        date: '2024-02-18',
+        documentUrl: '/uploads/ananya_national_gold_medal.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2024-02-25'),
+        remarks: 'Gold medal certificate and national citation verified by Research Committee.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'State Inter-College Panchakarma Case Competition',
+        achievementType: 'Hackathon / Competition',
+        issuer: 'Tamil Nadu Dr. M.G.R. Medical University',
+        level: 'State',
+        position: '1st Place / Winner',
+        relatedSkills: 'Panchakarma, Abhyanga',
+        description: 'Won 1st prize for live clinical case diagnostic demonstration and treatment planning.',
+        date: '2023-11-05',
+        documentUrl: '/uploads/ananya_state_award.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2023-11-12'),
+        remarks: 'Verified by Department Head.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'AYUSH Smart Innovation Hackathon 2024',
+        achievementType: 'Hackathon / Competition',
+        issuer: 'Smart India Hackathon (SIH) & Ministry of AYUSH',
+        level: 'National',
+        position: 'Finalist / Top 5',
+        relatedSkills: 'Digital Health, Ayurvedic Fundamentals',
+        description: 'Developed an AI-assisted Nadi Pariksha telemetry and patient monitoring concept.',
+        date: '2024-07-22',
+        documentUrl: '/uploads/ananya_sih_hackathon.pdf',
+        verificationStatus: 'PENDING', // Live pending item for demonstration
+      },
+    ],
+  });
+
+  // Projects
+  await prisma.studentProject.createMany({
+    data: [
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'Standardized Clinical Protocol for Medicated Steam Therapy (Swedana)',
+        description: 'Formulated a temperature-regulated herb infusion protocol for Nadi Sweda, reducing post-treatment flare-ups by 40%.',
+        technologies: 'Panchakarma, Swedana, Clinical Research',
+        projectUrl: 'https://research.dhanvantari.edu/projects/swedana-protocol-2024',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2024-04-10'),
+        remarks: 'Institutional ethical clearance and final clinical project report approved.',
+      },
+      {
+        studentId: stuAnanya.studentProfile.id,
+        title: 'AyurTrack: Digital Nadi Pariksha Recording System',
+        description: 'IoT sensor and web platform prototype for recording pulse wave frequency, amplitude, and rhythm.',
+        technologies: 'Ayurvedic Diagnosis, Digital Health',
+        projectUrl: 'https://github.com/ananya-ayur/ayurtrack',
+        verificationStatus: 'PENDING', // Live pending item for demonstration
+      },
+    ],
+  });
+
+  // Internships
+  await prisma.studentInternshipExperience.createMany({
+    data: [
+      {
+        studentId: stuAnanya.studentProfile.id,
+        companyName: 'Dhanvantari Wellness Hospital',
+        role: 'Clinical Panchakarma Trainee',
+        startDate: '2023-12-01',
+        endDate: '2024-02-28',
+        description: 'Assisted senior physicians in 150+ Panchakarma procedures, supervised pre- and post-operative dietary regimens.',
+        certificateUrl: '/uploads/ananya_panchakarma_internship_cert.pdf',
+        verificationStatus: 'VERIFIED',
+        verifiedById: instDhanvantari.id,
+        verifiedAt: new Date('2024-03-05'),
+        remarks: 'Hospital completion certificate and supervisor evaluation report verified.',
+      },
+    ],
+  });
+
+  // --- Seed additional pending items across other students for Institution verification workflow demo ---
+  await prisma.studentCertification.create({
+    data: {
+      studentId: stuArjun.studentProfile.id,
+      title: 'GCP & Clinical Trial Coordination in AYUSH',
+      certificateType: 'Online Course',
+      issuingOrganization: 'ICMR-AYUSH Joint Cell',
+      category: 'Research',
+      skillsCovered: 'Clinical Research, Research Methodology',
+      issueDate: '2024-05-15',
+      credentialId: 'ICMR-AYUSH-2024-991',
+      certificateDocUrl: '/uploads/sample_gcp_cert.pdf',
+      verificationStatus: 'PENDING',
+    },
+  });
+
+  await prisma.studentAcademicReport.create({
+    data: {
+      studentId: stuArjun.studentProfile.id,
+      reportType: 'SEMESTER_MARKSHEET',
+      academicYear: '2023-2024',
+      semester: 'Semester 7',
+      institution: 'Sri Dhanvantari Ayurveda College',
+      degree: 'BAMS',
+      department: 'Kayachikitsa',
+      yearOfStudy: '4th Year',
+      cgpa: 8.65,
+      percentage: 83.5,
+      description: 'Seventh semester grade card with research elective distinction.',
+      documentUrl: '/uploads/arjun_sem7_gradesheet.pdf',
+      verificationStatus: 'PENDING',
+    },
+  });
+
+  await prisma.studentAchievement.create({
+    data: {
+      studentId: stuArjun.studentProfile.id,
+      title: 'National AYUSH Clinical Poster Presentation',
+      achievementType: 'Research / Publication',
+      issuer: 'National Institute of Ayurveda',
+      level: 'National',
+      position: '2nd Place / Silver Medal',
+      relatedSkills: 'Clinical Research, Kayachikitsa',
+      description: 'Silver medal for scientific poster on pharmacological markers in classical preparations.',
+      date: '2024-04-12',
+      documentUrl: '/uploads/arjun_poster_award.pdf',
+      verificationStatus: 'PENDING',
+    },
+  });
+
+  // ---------------------------------------------------------
   // 6. Courses across Disciplines (18 total courses)
   // ---------------------------------------------------------
   console.log('6. Seeding 18 Published Courses...');
@@ -933,6 +1472,7 @@ async function seedMultiDomainDemo() {
     duration: string;
     mode: string;
     skills: string[];
+    subSkills?: string[];
     modules: { title: string; orderIndex: number; lessons: { title: string; content: string }[] }[];
   }) => {
     const course = await prisma.course.create({
@@ -956,6 +1496,16 @@ async function seedMultiDomainDemo() {
             })
             .filter(Boolean) as any[],
         },
+        subSkills: params.subSkills
+          ? {
+              create: params.subSkills
+                .map((ssName) => {
+                  const subId = subSkillMap.get(ssName);
+                  return subId ? { subSkillId: subId } : null;
+                })
+                .filter(Boolean) as any[],
+            }
+          : undefined,
         modules: {
           create: params.modules.map((m) => ({
             title: m.title,
@@ -976,7 +1526,48 @@ async function seedMultiDomainDemo() {
     return course;
   };
 
-  // Course 1: Clinical Ayurveda and Diagnosis (Dr. Ananya Krishnan)
+  // Course 1: Applied Ayurvedic Clinical Research & Scientific Writing (Dr. Ananya Krishnan)
+  const courseAppliedResearch = await createCourse({
+    title: 'Applied Ayurvedic Clinical Research & Scientific Writing',
+    description: 'Faculty-led skill development program designed to master evidence-based AYUSH clinical trial protocols, hypothesis formulation, biostatistical analysis, and scientific manuscript drafting in standardized IMRAD format for collaborative healthcare research.',
+    providerId: acadAnanya.id,
+    providerRole: 'ACADEMICIAN',
+    providerName: 'Dr. Ananya Krishnan (Sri Dhanvantari Ayurveda College)',
+    category: 'Ayurveda & Healthcare',
+    skillLevel: 'INTERMEDIATE',
+    duration: '4 Weeks',
+    mode: 'ONLINE',
+    skills: ['Clinical Research', 'Research Methodology', 'Scientific Writing'],
+    subSkills: ['Research Methodology', 'AYUSH GCP & Ethics', 'Data Collection', 'Case Reporting & CARE Guidelines', 'Manuscript Drafting'],
+    modules: [
+      {
+        title: 'Module 1: Evidence-Based AYUSH Clinical Trial Protocols',
+        orderIndex: 0,
+        lessons: [
+          { title: 'AYUSH Good Clinical Practice (GCP) Guidelines & Ethical Approvals', content: 'Comprehensive review of ethical clearances, investigator responsibilities, Informed Consent Forms (ICF), and patient safety monitoring in Ayurvedic trials.' },
+          { title: 'Clinical Case Record Forms (CRF) & Data Integrity Management', content: 'Standardizing patient vital tracking, baseline Roganidana metrics, adverse event reporting, and digital clinical logging.' },
+        ],
+      },
+      {
+        title: 'Module 2: Research Methodology & Biostatistics in Ayurveda',
+        orderIndex: 1,
+        lessons: [
+          { title: 'Hypothesis Formulation, Randomization & Study Controls', content: 'Formulating clinical hypotheses, sample size calculations, double-blind and open-label study designs for Panchakarma interventions.' },
+          { title: 'Biostatistical Outcome Analysis & Significance Modeling', content: 'Statistical significance testing, p-values, confidence intervals, and validating therapeutic outcomes against classical benchmarks.' },
+        ],
+      },
+      {
+        title: 'Module 3: Scientific Writing & Peer-Reviewed Publishing',
+        orderIndex: 2,
+        lessons: [
+          { title: 'Structuring Manuscripts in Standard IMRAD & CARE Guidelines', content: 'Drafting introduction, methodology, clinical observations, statistical discussion, and references formatted for indexed medical journals.' },
+          { title: 'Peer-Review Response, Revisions & Regulatory Dossiers', content: 'Responding to editorial reviewer feedback, manuscript proofing, and compiling regulatory submission dossiers.' },
+        ],
+      },
+    ],
+  });
+
+  // Course 2: Clinical Ayurveda and Diagnosis (Dr. Ananya Krishnan)
   const courseAyuDiag = await createCourse({
     title: 'Clinical Ayurveda and Diagnosis',
     description: 'Comprehensive clinical diagnosis methodology covering Roganidana, Ashtavidha Pariksha pulse examination, and bedside patient assessment.',
@@ -988,6 +1579,7 @@ async function seedMultiDomainDemo() {
     duration: '6 weeks',
     mode: 'ONLINE',
     skills: ['Ayurvedic Diagnosis', 'Clinical Ayurveda', 'Patient Assessment', 'Ayurvedic Fundamentals'],
+    subSkills: ['Nadi Pariksha', 'Ashtavidha Pariksha', 'Roganidana & Samprapti', 'Tridosha Theory'],
     modules: [
       {
         title: 'Module 1: Ashtavidha Pariksha & Clinical Examination',
@@ -1505,6 +2097,7 @@ async function seedMultiDomainDemo() {
     responsibilities: string;
     selectionProcess: string;
     skills: { name: string; minProficiency: string; isRequired: boolean }[];
+    subSkills?: { name: string; minProficiency?: string; isRequired: boolean; minScore: number }[];
   }) => {
     const opp = await prisma.opportunity.create({
       data: {
@@ -1539,6 +2132,23 @@ async function seedMultiDomainDemo() {
             })
             .filter(Boolean) as any[],
         },
+        subSkillRequirements: params.subSkills
+          ? {
+              create: params.subSkills
+                .map((ss) => {
+                  const subId = subSkillMap.get(ss.name);
+                  return subId
+                    ? {
+                        subSkillId: subId,
+                        isRequired: ss.isRequired,
+                        minScore: ss.minScore || 70.0,
+                        minProficiency: ss.minProficiency || 'INTERMEDIATE',
+                      }
+                    : null;
+                })
+                .filter(Boolean) as any[],
+            }
+          : undefined,
       },
     });
     return opp;
@@ -1548,25 +2158,172 @@ async function seedMultiDomainDemo() {
   // Ayurveda Internships (9)
   const oppPanchaIntern = await createOpp({
     industryId: indDhanvantari.industryProfile.id,
-    title: 'Panchakarma Therapy Intern',
+    title: 'Digital Panchakarma & Ayurvedic Wellness Research Internship',
     type: 'INTERNSHIP',
-    description: 'Assist senior Ayurvedic consultants in conducting inpatient and outpatient Panchakarma therapies, Abhyanga, and patient wellness tracking.',
+    description: 'Collaborative industry-academia research internship focused on clinical Panchakarma validation, digital health telemetry, and evidence-based Ayurvedic research protocols.',
     degree: 'BAMS',
     department: 'Kayachikitsa / Panchakarma',
     minCgpa: 7.5,
-    experience: 'Fresher / Final Year',
-    location: 'Chennai, Tamil Nadu',
-    workMode: 'ON_SITE',
-    stipendOrSalary: 'INR 18,000 / month',
-    duration: '6 Months',
-    responsibilities: 'Administer classical external oleation and sudation therapies under consultant supervision.',
-    selectionProcess: 'Clinical Skill Evaluation & Interview',
+    experience: '3rd / 4th / 5th Year BAMS Students',
+    location: 'Chennai / Hybrid',
+    workMode: 'HYBRID',
+    stipendOrSalary: 'INR 22,000 / month',
+    duration: '3 Months',
+    responsibilities: 'Conduct clinical Panchakarma treatment documentation, monitor patient vital telemetry, assist in GCP trial protocol logging, and contribute to scientific study drafting under academic mentorship.',
+    selectionProcess: 'Industry Technical Assessment (75% Passing Score) & Mentored Evaluation',
     skills: [
-      { name: 'Panchakarma', minProficiency: 'INTERMEDIATE', isRequired: true },
-      { name: 'Abhyanga', minProficiency: 'INTERMEDIATE', isRequired: true },
-      { name: 'Swedana', minProficiency: 'INTERMEDIATE', isRequired: true },
-      { name: 'Ayurvedic Diagnosis', minProficiency: 'BEGINNER', isRequired: false },
+      { name: 'Ayurvedic Fundamentals', minProficiency: 'ADVANCED', isRequired: true },
+      { name: 'Ayurvedic Diagnosis', minProficiency: 'INTERMEDIATE', isRequired: true },
+      { name: 'Panchakarma', minProficiency: 'ADVANCED', isRequired: true },
+      { name: 'Clinical Research', minProficiency: 'INTERMEDIATE', isRequired: true },
+      { name: 'Research Methodology', minProficiency: 'INTERMEDIATE', isRequired: true },
+      { name: 'Scientific Writing', minProficiency: 'INTERMEDIATE', isRequired: true },
+      { name: 'Digital Health', minProficiency: 'INTERMEDIATE', isRequired: true },
     ],
+    subSkills: [
+      // Mandatory Requirements (Passing threshold: 70-75%)
+      { name: 'Procedure Knowledge', isRequired: true, minScore: 75.0, minProficiency: 'ADVANCED' },
+      { name: 'Safety Protocols', isRequired: true, minScore: 75.0, minProficiency: 'ADVANCED' },
+      { name: 'Research Methodology', isRequired: true, minScore: 70.0, minProficiency: 'INTERMEDIATE' },
+      { name: 'Case Reporting & CARE Guidelines', isRequired: true, minScore: 70.0, minProficiency: 'INTERMEDIATE' },
+
+      // Preferred Requirements (Passing threshold: 60-70%)
+      { name: 'Data Collection', isRequired: false, minScore: 60.0, minProficiency: 'INTERMEDIATE' },
+      { name: 'Tridosha Theory', isRequired: false, minScore: 70.0, minProficiency: 'INTERMEDIATE' },
+      { name: 'Nadi Pariksha', isRequired: false, minScore: 70.0, minProficiency: 'INTERMEDIATE' },
+      { name: 'EHR & Health Informatics', isRequired: false, minScore: 65.0, minProficiency: 'INTERMEDIATE' },
+    ],
+  });
+
+  // Seed Industry-Created Assessment linked to this Opportunity
+  const panchaAssessment = await prisma.assessment.create({
+    data: {
+      opportunityId: oppPanchaIntern.id,
+      industryId: indDhanvantari.industryProfile.id,
+      title: 'Panchakarma & Ayurvedic Clinical Research Assessment',
+      description: 'Standardized industry technical screening evaluating clinical Panchakarma knowledge, diagnostic fundamentals, clinical research GCP, biostatistical methodology, and digital health taxonomy.',
+      instructions: 'Answer all 7 multiple-choice questions. Time limit: 30 minutes. Passing score: 75%. One attempt permitted.',
+      categoryId: catAyuFund.id,
+      durationMinutes: 30,
+      passingScore: 75.0,
+      isLocked: false,
+      questions: {
+        create: [
+          {
+            questionText: 'Which classical Ayurvedic principle governs the bio-transformation of Dhatus and metabolic homeostasis in chronic systemic conditions?',
+            difficulty: 'MEDIUM',
+            weightage: 1,
+            skillId: skillMap.get('Ayurvedic Fundamentals'),
+            subSkillId: subSkillMap.get('Tridosha Theory'),
+            topicName: 'Vata Dosha Characteristics',
+            options: {
+              create: [
+                { optionText: 'Saptadhatu Poshana Nyaya (Sequential tissue nourishment)', isCorrect: true },
+                { optionText: 'Ritu Sandhi Parinam (Seasonal junction transition)', isCorrect: false },
+                { optionText: 'Ashta Ahara Vidhi (Eight dietary codes only)', isCorrect: false },
+                { optionText: 'Upadhatu Kshaya (Secondary tissue depletion)', isCorrect: false },
+              ],
+            },
+          },
+          {
+            questionText: 'In classical Panchakarma protocols, what is the mandatory Purvakarma preparatory sequence required before initiating major Sodhana therapies?',
+            difficulty: 'MEDIUM',
+            weightage: 1,
+            skillId: skillMap.get('Panchakarma'),
+            subSkillId: subSkillMap.get('Procedure Knowledge'),
+            topicName: 'Vamana Vidhi Execution',
+            options: {
+              create: [
+                { optionText: 'Deepana-Pachana followed by Snehana (Internal & External Oleation) and Swedana (Sudation)', isCorrect: true },
+                { optionText: 'Immediate administration of Vamana drugs without prior oleation', isCorrect: false },
+                { optionText: 'Nasya therapy followed directly by Raktamokshana bloodletting', isCorrect: false },
+                { optionText: 'Direct administration of Anuvasana Basti without digestive assessment', isCorrect: false },
+              ],
+            },
+          },
+          {
+            questionText: 'During Ashtavidha Pariksha radial pulse examination (Nadi Pariksha), which characteristic pulse movement classically denotes dynamic Vata-Pitta vitiation?',
+            difficulty: 'HARD',
+            weightage: 1,
+            skillId: skillMap.get('Ayurvedic Diagnosis'),
+            subSkillId: subSkillMap.get('Nadi Pariksha'),
+            topicName: 'Radial Pulse Gati Analysis',
+            options: {
+              create: [
+                { optionText: 'Sarpa-Manduka Gati (Serpentine leaping gait)', isCorrect: true },
+                { optionText: 'Hamsa Gati (Slow swan-like steady movement)', isCorrect: false },
+                { optionText: 'Kaka Gati (Erratic crow-like hopping movement)', isCorrect: false },
+                { optionText: 'Gaja Gati (Slow heavy elephant movement)', isCorrect: false },
+              ],
+            },
+          },
+          {
+            questionText: 'Under AYUSH Good Clinical Practice (GCP) guidelines, what regulatory milestone is mandatory prior to enrolling human subjects in an evidence-based trial?',
+            difficulty: 'MEDIUM',
+            weightage: 1,
+            skillId: skillMap.get('Clinical Research'),
+            subSkillId: subSkillMap.get('AYUSH GCP & Ethics'),
+            topicName: 'Institutional Ethics Committee (IEC) Approvals',
+            options: {
+              create: [
+                { optionText: 'Institutional Ethics Committee (IEC) approval and CTRI trial registration', isCorrect: true },
+                { optionText: 'Commercial patent registration certificate from trade office', isCorrect: false },
+                { optionText: 'Manufacturing facility GMP renewal audit', isCorrect: false },
+                { optionText: 'State licensing authority retail permit only', isCorrect: false },
+              ],
+            },
+          },
+          {
+            questionText: 'In designing a randomized controlled trial (RCT) evaluating Panchakarma therapeutic efficacy, which technique best minimizes selection bias between intervention and control cohorts?',
+            difficulty: 'HARD',
+            weightage: 1,
+            skillId: skillMap.get('Research Methodology') || skillMap.get('Clinical Research'),
+            subSkillId: subSkillMap.get('Research Methodology'),
+            topicName: 'RCT & Controlled Study Design',
+            options: {
+              create: [
+                { optionText: 'Computer-generated stratified block randomization with allocation concealment', isCorrect: true },
+                { optionText: 'Open voluntary self-selection by participating subjects', isCorrect: false },
+                { optionText: 'Alternating day-of-week subject assignment without concealment', isCorrect: false },
+                { optionText: 'Investigator subjective clinical preference assignment', isCorrect: false },
+              ],
+            },
+          },
+          {
+            questionText: 'When authoring an Ayurvedic clinical case study for peer-reviewed indexed medical journals, which standardized reporting guideline is internationally accepted?',
+            difficulty: 'MEDIUM',
+            weightage: 1,
+            skillId: skillMap.get('Scientific Writing'),
+            subSkillId: subSkillMap.get('Case Reporting & CARE Guidelines'),
+            topicName: 'CARE Checklist Verification',
+            options: {
+              create: [
+                { optionText: 'CARE Guidelines (CAse REport checklist for clinical reporting)', isCorrect: true },
+                { optionText: 'PRISMA-P (Systematic review protocols only)', isCorrect: false },
+                { optionText: 'AGREE II (Clinical practice guideline appraisal only)', isCorrect: false },
+                { optionText: 'STROBE (Epidemiological observational cohorts only)', isCorrect: false },
+              ],
+            },
+          },
+          {
+            questionText: 'In digital Ayurvedic health informatics and EHR systems, what is the primary clinical objective of integrating standardized AYUSH diagnostic coding (NAMASTE portal / ICD-11 TM2)?',
+            difficulty: 'MEDIUM',
+            weightage: 1,
+            skillId: skillMap.get('Digital Health'),
+            subSkillId: subSkillMap.get('EHR & Health Informatics'),
+            topicName: 'NAMASTE Portal Diagnostic Codes',
+            options: {
+              create: [
+                { optionText: 'Enabling interoperable electronic health records, standardized case data exchange, and longitudinal outcome analytics', isCorrect: true },
+                { optionText: 'Automating pharmacy billing and retail medicine pricing', isCorrect: false },
+                { optionText: 'Encrypting wireless telemetry hardware signals only', isCorrect: false },
+                { optionText: 'Replacing clinical pulse and physical examination entirely', isCorrect: false },
+              ],
+            },
+          },
+        ],
+      },
+    },
   });
 
   const oppClinResearchIntern = await createOpp({
@@ -2133,17 +2890,7 @@ async function seedMultiDomainDemo() {
     },
   });
 
-  // Ananya Iyer applied to Panchakarma Therapy Intern & Clinical Ayurveda Intern
-  await prisma.application.create({
-    data: {
-      studentId: stuAnanya.studentProfile.id,
-      opportunityId: oppPanchaIntern.id,
-      status: 'APPLIED',
-      matchScore: 80.0,
-      coverLetter: 'Dedicated to classical Panchakarma therapies and inpatient care.',
-    },
-  });
-
+  // Ananya Iyer applied to Clinical Ayurveda Intern
   await prisma.application.create({
     data: {
       studentId: stuAnanya.studentProfile.id,
@@ -2256,22 +3003,44 @@ async function seedMultiDomainDemo() {
   // ---------------------------------------------------------
   console.log('10. Seeding 10 Academia-Industry Collaborations & MoUs...');
 
-  // 1. Dhanvantari Wellness <-> Sri Dhanvantari Ayurveda College
-  await prisma.collaboration.create({
+  // 1. Dhanvantari Wellness <-> Sri Dhanvantari Ayurveda College <-> Dr. Ananya Krishnan
+  const collabDhanvantari = await prisma.collaboration.create({
     data: {
       initiatorId: indDhanvantari.id,
       initiatorRole: 'INDUSTRY',
-      title: 'Ayurveda Wellness Internship Program',
-      type: 'INDUSTRIAL_TRAINING',
-      description: 'Joint clinical training partnership providing clinical rotations for final year BAMS students in specialized inpatient Panchakarma centers.',
-      targetAudience: 'BAMS Final Year & Interns',
+      title: 'Digital Panchakarma & Ayurvedic Wellness Research Project',
+      type: 'RESEARCH',
+      description: 'Collaborative industry-academia research project and internship program connecting Dhanvantari Wellness Pvt Ltd, Sri Dhanvantari Ayurveda College, and academic mentor Dr. Ananya Krishnan for clinical Panchakarma validation and healthcare informatics.',
+      targetAudience: 'BAMS Final Year Students & Faculty',
       location: 'Chennai, Tamil Nadu',
-      mode: 'OFFLINE',
-      duration: '12 Months',
-      remunerationOrStipend: 'INR 18,000 / month',
-      eligibilityCriteria: 'Minimum CGPA 7.5 in Roganidana and Kayachikitsa',
+      mode: 'HYBRID',
+      duration: '3 Months',
+      remunerationOrStipend: 'INR 22,000 / month project fellowship',
+      eligibilityCriteria: 'BAMS 3rd/4th/5th year with minimum CGPA 7.5 and required skill assessment',
       status: 'OPEN',
-      budget: 'INR 12,00,000',
+      budget: 'INR 15,00,000',
+    },
+  });
+
+  // Link Dr. Ananya Krishnan as Academic Mentor
+  await prisma.collaborationApplication.create({
+    data: {
+      collaborationId: collabDhanvantari.id,
+      applicantRole: 'ACADEMICIAN',
+      academicianId: acadAnanya.academicianProfile.id,
+      proposal: 'Supervising student research protocols, AYUSH GCP compliance, and clinical Panchakarma telemetry validation.',
+      status: 'ACCEPTED',
+    },
+  });
+
+  // Link Sri Dhanvantari Ayurveda College as Institution
+  await prisma.collaborationApplication.create({
+    data: {
+      collaborationId: collabDhanvantari.id,
+      applicantRole: 'INSTITUTION',
+      institutionId: instDhanvantari.institutionProfile.id,
+      proposal: 'Institutional academic partnership and clinical facility access for research internship validation.',
+      status: 'ACCEPTED',
     },
   });
 
@@ -2505,6 +3274,12 @@ async function seedMultiDomainDemo() {
       isAccepting: true,
     },
   });
+ 
+  // 12. Career Roles, Granular Role Skills & Prerequisite Dependencies
+  await seedCareerRolesAndDependencies();
+
+  // 13. Institutional Linkages, Verified Partnerships & 5-Tier Skill Evidence
+  await seedEvidenceAndPartnerships();
 
   console.log('\n==================================================================');
   console.log('🎉 SEEDING COMPLETED SUCCESSFULLY!');

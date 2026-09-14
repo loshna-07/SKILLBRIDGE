@@ -1,6 +1,12 @@
 import { Response } from 'express';
 import prisma from '../config/db';
 import { AuthRequest } from '../middleware/authMiddleware';
+import {
+  calculateGranularAssessmentScores,
+  convertScoreToProficiency,
+  generateSkillRoadmap,
+} from '../services/granularSkillEngine';
+import { recordAssessmentEvidence } from '../services/evidenceService';
 
 // List All Assessments
 export const getAssessments = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -8,7 +14,16 @@ export const getAssessments = async (req: AuthRequest, res: Response): Promise<v
     const assessments = await prisma.assessment.findMany({
       include: {
         category: true,
-        questions: { select: { id: true, skillId: true, difficulty: true } },
+        questions: {
+          select: {
+            id: true,
+            skillId: true,
+            subSkillId: true,
+            topicName: true,
+            difficulty: true,
+            subSkill: { select: { name: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -63,6 +78,9 @@ export const getAssessmentById = async (req: AuthRequest, res: Response): Promis
         questions: {
           include: {
             skill: true,
+            subSkill: {
+              include: { topics: true },
+            },
             options: {
               select: {
                 id: true,
@@ -87,7 +105,7 @@ export const getAssessmentById = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// Submit Assessment Attempt & Calculate Skill Scores
+// Submit Assessment Attempt & Calculate Granular Skill Scores
 export const submitAssessment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const assessmentId = req.params.id as string;
@@ -105,10 +123,12 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
     const assessment = await prisma.assessment.findUnique({
       where: { id: assessmentId },
       include: {
+        opportunity: { include: { industry: true } },
         questions: {
           include: {
             options: true,
-            skill: true,
+            skill: { include: { category: true } },
+            subSkill: true,
           },
         },
       },
@@ -119,13 +139,9 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const questionMap = new Map<string, any>();
-    for (const q of assessment.questions) {
-      questionMap.set(q.id, q);
-    }
+    // 1. Calculate granular breakdown using granularSkillEngine
+    const granularAnalysis = await calculateGranularAssessmentScores(assessmentId, responses || []);
 
-    let totalScore = 0;
-    let earnedScore = 0;
     const responseRecords: Array<{
       questionId: string;
       selectedOptionId: string | null;
@@ -133,32 +149,22 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
       scoreEarned: number;
     }> = [];
 
-    // Map to group scores by skill: skillId -> { totalWeight: number, earnedWeight: number, skillName: string }
-    const skillScoreMap = new Map<string, { total: number; earned: number; name: string }>();
-
-    for (const q of assessment.questions) {
-      const weight = q.weightage || 1;
-      totalScore += weight;
-
-      if (q.skillId && q.skill) {
-        if (!skillScoreMap.has(q.skillId)) {
-          skillScoreMap.set(q.skillId, { total: 0, earned: 0, name: q.skill.name });
-        }
-        const sEntry = skillScoreMap.get(q.skillId)!;
-        sEntry.total += weight;
-      }
-    }
-
     const submittedMap = new Map<string, string>();
     if (Array.isArray(responses)) {
       for (const r of responses) {
-        submittedMap.set(r.questionId, r.selectedOptionId);
+        if (r.questionId && r.selectedOptionId) {
+          submittedMap.set(r.questionId, r.selectedOptionId);
+        }
       }
     }
+
+    let totalScore = 0;
+    let earnedScore = 0;
 
     for (const q of assessment.questions) {
       const selectedOptionId = submittedMap.get(q.id) || null;
       const weight = q.weightage || 1;
+      totalScore += weight;
       let isCorrect = false;
 
       if (selectedOptionId) {
@@ -166,10 +172,6 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
         if (correctOpt && correctOpt.id === selectedOptionId) {
           isCorrect = true;
           earnedScore += weight;
-
-          if (q.skillId && skillScoreMap.has(q.skillId)) {
-            skillScoreMap.get(q.skillId)!.earned += weight;
-          }
         }
       }
 
@@ -184,16 +186,19 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
     const percentage = totalScore > 0 ? Math.round((earnedScore / totalScore) * 100) : 0;
     const passed = percentage >= assessment.passingScore;
 
-    // Create attempt and responses in a transaction
+    // 2. Persist in database in a transaction
     const attempt = await prisma.$transaction(async (tx) => {
       const newAttempt = await tx.assessmentAttempt.create({
         data: {
           studentId: student.id,
           assessmentId,
+          opportunityId: assessment.opportunityId || null,
           score: earnedScore,
           totalScore,
           percentage,
           passed,
+          skillBreakdown: JSON.stringify(granularAnalysis.skillScores),
+          granularBreakdown: JSON.stringify(granularAnalysis),
           completedAt: new Date(),
           responses: {
             create: responseRecords,
@@ -201,31 +206,76 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
         },
       });
 
-      // Update or create StudentSkillProfile for each evaluated skill
-      for (const [skillId, stats] of skillScoreMap.entries()) {
-        const skillPercentage = stats.total > 0 ? Math.round((stats.earned / stats.total) * 100) : 0;
-
-        let proficiencyLevel = 'BEGINNER';
-        if (skillPercentage >= 85) proficiencyLevel = 'ADVANCED';
-        else if (skillPercentage >= 60) proficiencyLevel = 'INTERMEDIATE';
-
-        const existingSkillProfile = await tx.studentSkillProfile.findUnique({
+      // Update / create granular StudentSubSkillScores & SkillProgressSnapshots
+      for (const sub of granularAnalysis.subSkillScores) {
+        const existingSubScore = await tx.studentSubSkillScore.findUnique({
           where: {
-            studentId_skillId: {
+            studentId_subSkillId: {
               studentId: student.id,
-              skillId,
+              subSkillId: sub.subSkillId,
             },
           },
         });
 
-        if (existingSkillProfile) {
-          // Average with previous or take best
-          const newAvgScore = Math.round((existingSkillProfile.scorePercentage + skillPercentage) / 2);
-          await tx.studentSkillProfile.update({
-            where: { id: existingSkillProfile.id },
+        const prevScore = existingSubScore ? existingSubScore.scorePercentage : sub.scorePercentage;
+        const deltaPercentage = Math.round(sub.scorePercentage - prevScore);
+
+        if (existingSubScore) {
+          await tx.studentSubSkillScore.update({
+            where: { id: existingSubScore.id },
             data: {
-              scorePercentage: newAvgScore,
-              proficiencyLevel,
+              scorePercentage: sub.scorePercentage,
+              proficiencyLevel: sub.proficiencyLevel,
+              questionsAttempted: existingSubScore.questionsAttempted + sub.questionsTotal,
+              questionsCorrect: existingSubScore.questionsCorrect + sub.questionsCorrect,
+              lastAssessedAt: new Date(),
+            },
+          });
+        } else {
+          await tx.studentSubSkillScore.create({
+            data: {
+              studentId: student.id,
+              subSkillId: sub.subSkillId,
+              scorePercentage: sub.scorePercentage,
+              proficiencyLevel: sub.proficiencyLevel,
+              questionsAttempted: sub.questionsTotal,
+              questionsCorrect: sub.questionsCorrect,
+              lastAssessedAt: new Date(),
+            },
+          });
+        }
+
+        // Record historical progress snapshot
+        await tx.skillProgressSnapshot.create({
+          data: {
+            studentId: student.id,
+            subSkillId: sub.subSkillId,
+            assessmentAttemptId: newAttempt.id,
+            scorePercentage: sub.scorePercentage,
+            proficiencyLevel: sub.proficiencyLevel,
+            deltaPercentage,
+            recordedAt: new Date(),
+          },
+        });
+      }
+
+      // Update / create high-level StudentSkillProfile
+      for (const sk of granularAnalysis.skillScores) {
+        const existingSkill = await tx.studentSkillProfile.findUnique({
+          where: {
+            studentId_skillId: {
+              studentId: student.id,
+              skillId: sk.skillId,
+            },
+          },
+        });
+
+        if (existingSkill) {
+          await tx.studentSkillProfile.update({
+            where: { id: existingSkill.id },
+            data: {
+              scorePercentage: sk.scorePercentage,
+              proficiencyLevel: sk.proficiencyLevel,
               lastAssessedAt: new Date(),
             },
           });
@@ -233,12 +283,12 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
           await tx.studentSkillProfile.create({
             data: {
               studentId: student.id,
-              skillId,
-              proficiencyLevel,
-              scorePercentage: skillPercentage,
+              skillId: sk.skillId,
+              proficiencyLevel: sk.proficiencyLevel,
+              scorePercentage: sk.scorePercentage,
               lastAssessedAt: new Date(),
-              verified: false,
-              verificationStatus: 'PENDING',
+              verified: sk.scorePercentage >= 80,
+              verificationStatus: sk.scorePercentage >= 80 ? 'VERIFIED' : 'PENDING',
             },
           });
         }
@@ -251,48 +301,54 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
           action: 'ASSESSMENT_COMPLETED',
           entityType: 'AssessmentAttempt',
           entityId: newAttempt.id,
-          details: JSON.stringify({ score: earnedScore, percentage, passed }),
+          details: JSON.stringify({ score: earnedScore, percentage, passed, granular: granularAnalysis.subSkillScores.length }),
         },
       });
 
       return newAttempt;
     });
 
-    // Strengths and Weaknesses breakdown
-    const strengths: string[] = [];
-    const weaknesses: string[] = [];
-    const skillBreakdown: Array<{ skill: string; percentage: number; level: string }> = [];
+    // 3. Record 5-Level Evidence-Based Skill Verification
+    await recordAssessmentEvidence({
+      studentId: student.id,
+      attemptId: attempt.id,
+      assessmentId,
+      overallScore: percentage,
+      granularBreakdown: granularAnalysis,
+      opportunityId: assessment.opportunityId || null,
+      companyName: assessment.opportunity?.industry?.companyName || null,
+      assessmentTitle: assessment.title,
+    }).catch((err) => console.error('Error recording assessment evidence:', err));
 
-    for (const [_sId, stats] of skillScoreMap.entries()) {
-      const pct = stats.total > 0 ? Math.round((stats.earned / stats.total) * 100) : 0;
-      let level = 'BEGINNER';
-      if (pct >= 85) level = 'ADVANCED';
-      else if (pct >= 60) level = 'INTERMEDIATE';
+    // 4. Strengths and Critical Gaps
+    const strongSkills = granularAnalysis.subSkillScores.filter((s) => s.scorePercentage >= 75);
+    const improvementAreas = granularAnalysis.subSkillScores.filter((s) => s.scorePercentage >= 60 && s.scorePercentage < 75);
+    const criticalGaps = granularAnalysis.subSkillScores.filter((s) => s.scorePercentage < 60);
 
-      skillBreakdown.push({ skill: stats.name, percentage: pct, level });
-
-      if (pct >= 70) strengths.push(stats.name);
-      else weaknesses.push(stats.name);
-    }
-
-    const skillGaps = weaknesses.map((w) => ({
-      skill: w,
-      gapType: 'PERFORMANCE_GAP',
-      severity: 'HIGH',
-      description: `Assessed score is below industry baseline (60%). Additional training or retake recommended.`,
-    }));
+    // 5. Generate instant AI roadmap based on updated student profile
+    const roadmap = await generateSkillRoadmap(student.id, assessment.opportunityId || undefined);
 
     res.status(201).json({
-      message: 'Assessment submitted successfully.',
+      message: 'Assessment submitted and granular skill intelligence calculated successfully.',
       attemptId: attempt.id,
       score: earnedScore,
       totalScore,
       percentage,
       passed,
-      strengths,
-      weaknesses,
-      skillGaps,
-      skillBreakdown,
+      granularScores: granularAnalysis,
+      granularAnalysis,
+      strengths: strongSkills.map((s) => s.subSkillName),
+      weaknesses: criticalGaps.map((c) => c.subSkillName),
+      strongSkills,
+      improvementAreas,
+      criticalGaps,
+      skillBreakdown: granularAnalysis.skillScores.map((s) => ({
+        skill: s.skillName,
+        percentage: s.scorePercentage,
+        level: s.proficiencyLevel,
+      })),
+      roadmap,
+      roadmapRecommendation: roadmap,
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to submit assessment.' });

@@ -16,29 +16,72 @@ import {
   resolveDomain,
   DOMAIN_DISPLAY_NAMES,
 } from '../services/personalizationService';
+import {
+  analyzeSkillProfile,
+  calculateIndustryReadiness,
+  generateSkillRoadmap,
+  calculateSkillGrowth,
+  recordSubSkillReassessment,
+} from '../services/granularSkillEngine';
+import {
+  calculateRoleReadiness,
+  generateRoleRoadmap,
+  generateOpportunityRoadmap,
+  getActiveRoadmap,
+  getRoadmapHistory,
+  updateRoadmapAfterReassessment,
+} from '../services/roadmapEngine';
+import {
+  getStudentSkillEvidenceProfile,
+  getEvidenceTimeline,
+  recordSelfDeclaredEvidence,
+  recordCertificateEvidence,
+} from '../services/evidenceService';
 
-// Calculate student profile completion %
+// Calculate student profile completion % dynamically from all records
 const calculateProfileCompletion = (profile: any): number => {
   if (!profile) return 0;
-  const fields = [
+  
+  // 1. Basic Information (15%)
+  const basicFields = [
     profile.fullName,
     profile.institutionName,
     profile.department,
     profile.degree,
     profile.phone,
-    profile.dob,
-    profile.gender,
-    profile.cgpa,
-    profile.currentYear,
-    profile.graduationYear,
-    profile.location,
     profile.bio,
     profile.resumeUrl,
     profile.careerInterests,
-    profile.preferredRoles,
   ];
-  const filled = fields.filter((f) => f !== null && f !== undefined && f !== '').length;
-  return Math.round((filled / fields.length) * 100);
+  const filledBasic = basicFields.filter((f) => f !== null && f !== undefined && f !== '').length;
+  const basicScore = Math.min(15, Math.round((filledBasic / basicFields.length) * 15));
+
+  // 2. Academic Background (15%)
+  const hasAcademicData = (profile.educations && profile.educations.length > 0) || (profile.cgpa && profile.currentYear);
+  const academicScore = hasAcademicData ? 15 : 0;
+
+  // 3. Skills Profile (20%)
+  const skillCount = profile.skillProfiles ? profile.skillProfiles.length : 0;
+  const skillScore = Math.min(20, skillCount >= 3 ? 20 : skillCount * 7);
+
+  // 4. Certifications (15%)
+  const certCount = profile.certificates ? profile.certificates.length : 0;
+  const certScore = Math.min(15, certCount >= 2 ? 15 : certCount * 8);
+
+  // 5. Academic Reports / Marksheets (10%)
+  const reportCount = profile.academicReports ? profile.academicReports.length : 0;
+  const reportScore = Math.min(10, reportCount >= 1 ? 10 : 0);
+
+  // 6. Achievements (10%)
+  const achievCount = profile.achievements ? profile.achievements.length : 0;
+  const achievScore = Math.min(10, achievCount >= 1 ? 10 : 0);
+
+  // 7. Projects & Internships (15%)
+  const expCount = (profile.projects ? profile.projects.length : 0) + (profile.internships ? profile.internships.length : 0);
+  const expScore = Math.min(15, expCount >= 2 ? 15 : expCount * 8);
+
+  const total = basicScore + academicScore + skillScore + certScore + reportScore + achievScore + expScore;
+  return Math.min(100, Math.max(10, total));
 };
 
 // Student Dashboard Summary
@@ -70,6 +113,9 @@ export const getStudentDashboard = async (req: AuthRequest, res: Response): Prom
         educations: true,
         certificates: {
           orderBy: { createdAt: 'desc' },
+        },
+        academicReports: {
+          orderBy: [{ academicYear: 'desc' }, { semester: 'desc' }],
         },
         projects: true,
         internships: true,
@@ -166,6 +212,8 @@ export const getStudentDashboard = async (req: AuthRequest, res: Response): Prom
       })),
       careerInterests,
       certifications: student.certificates,
+      academicReports: student.academicReports,
+      achievements: student.achievements,
       skillAnalysis: {
         strongSkills,
         skillsToImprove,
@@ -215,6 +263,8 @@ export const getStudentDashboard = async (req: AuthRequest, res: Response): Prom
         applicationsCount: student.applications.length,
         collaborationsCount: activeCollaborationsCount,
         certificationsCount: student.certificates.length,
+        academicReportsCount: student.academicReports.length,
+        achievementsCount: student.achievements.length,
       },
       recentCollaborations: collabApplications,
       recentAssessments: student.assessmentAttempts,
@@ -232,6 +282,16 @@ export const getStudentProfile = async (req: AuthRequest, res: Response): Promis
       where: { userId: req.user!.id },
       include: {
         skillProfiles: { include: { skill: true } },
+        institution: {
+          select: {
+            id: true,
+            institutionName: true,
+            institutionType: true,
+            officialEmail: true,
+            affiliatedUniversity: true,
+            verificationStatus: true,
+          },
+        },
       },
     });
 
@@ -617,6 +677,7 @@ export const getStudentPortfolio = async (req: AuthRequest, res: Response): Prom
       include: {
         educations: { orderBy: { startYear: 'desc' } },
         certificates: { orderBy: { createdAt: 'desc' } },
+        academicReports: { orderBy: [{ academicYear: 'desc' }, { semester: 'desc' }] },
         projects: { orderBy: { createdAt: 'desc' } },
         internships: { orderBy: { createdAt: 'desc' } },
         achievements: { orderBy: { createdAt: 'desc' } },
@@ -632,6 +693,20 @@ export const getStudentPortfolio = async (req: AuthRequest, res: Response): Prom
         courseCertificates: {
           include: { course: true },
           orderBy: { issueDate: 'desc' },
+        },
+        institution: {
+          select: {
+            id: true,
+            institutionName: true,
+            institutionType: true,
+            officialEmail: true,
+            affiliatedUniversity: true,
+            verificationStatus: true,
+          },
+        },
+        skillEvidence: {
+          include: { skill: true, certificate: true },
+          orderBy: { evidenceDate: 'desc' },
         },
       },
     });
@@ -721,13 +796,17 @@ export const addCertification = async (req: AuthRequest, res: Response): Promise
     const {
       title,
       name,
+      certificateType,
       issuingOrganization,
+      courseName,
+      category,
       issueDate,
       expiryDate,
       credentialId,
       credentialUrl,
       certificateDocUrl,
       skillsCovered,
+      description,
     } = req.body;
 
     const certTitle = title || name;
@@ -740,16 +819,36 @@ export const addCertification = async (req: AuthRequest, res: Response): Promise
       data: {
         studentId: student.id,
         title: certTitle,
+        certificateType: certificateType || null,
         issuingOrganization,
+        courseName: courseName || null,
+        category: category || null,
         issueDate: issueDate || null,
         expiryDate: expiryDate || null,
         credentialId: credentialId || null,
         credentialUrl: credentialUrl || null,
         certificateDocUrl: certificateDocUrl || null,
         skillsCovered: Array.isArray(skillsCovered) ? skillsCovered.join(', ') : skillsCovered || null,
+        description: description || null,
         verificationStatus: 'PENDING',
       },
     });
+
+    // Record certificate as EVIDENCE_PROVIDED in Evidence-Based Skill Verification system
+    try {
+      await recordCertificateEvidence({
+        studentId: student.id,
+        certificateId: cert.id,
+        title: cert.title,
+        issuingOrganization: cert.issuingOrganization,
+        skillsCovered: cert.skillsCovered,
+        credentialId: cert.credentialId,
+        documentUrl: cert.certificateDocUrl,
+        isVerified: false,
+      });
+    } catch (evErr) {
+      console.error('Failed to record certificate evidence:', evErr);
+    }
 
     res.status(201).json(cert);
   } catch (error: any) {
@@ -769,31 +868,55 @@ export const updateCertification = async (req: AuthRequest, res: Response): Prom
     const {
       title,
       name,
+      certificateType,
       issuingOrganization,
+      courseName,
+      category,
       issueDate,
       expiryDate,
       credentialId,
       credentialUrl,
       certificateDocUrl,
       skillsCovered,
+      description,
     } = req.body;
 
     const updated = await prisma.studentCertification.update({
       where: { id },
       data: {
         title: title || name,
+        certificateType: certificateType || null,
         issuingOrganization,
+        courseName: courseName || null,
+        category: category || null,
         issueDate: issueDate || null,
         expiryDate: expiryDate || null,
         credentialId: credentialId || null,
         credentialUrl: credentialUrl || null,
         certificateDocUrl: certificateDocUrl || null,
         skillsCovered: Array.isArray(skillsCovered) ? skillsCovered.join(', ') : skillsCovered || null,
+        description: description || null,
         verificationStatus: 'PENDING',
         verifiedById: null,
         verifiedAt: null,
       },
     });
+
+    // Refresh certificate evidence in evidence system
+    try {
+      await recordCertificateEvidence({
+        studentId: student.id,
+        certificateId: updated.id,
+        title: updated.title,
+        issuingOrganization: updated.issuingOrganization,
+        skillsCovered: updated.skillsCovered,
+        credentialId: updated.credentialId,
+        documentUrl: updated.certificateDocUrl,
+        isVerified: false,
+      });
+    } catch (evErr) {
+      console.error('Failed to update certificate evidence:', evErr);
+    }
 
     res.json(updated);
   } catch (error: any) {
@@ -977,6 +1100,17 @@ export const addStudentSkill = async (req: AuthRequest, res: Response): Promise<
       },
     });
 
+    // Record as SELF_DECLARED in Evidence-Based Skill Verification system
+    try {
+      await recordSelfDeclaredEvidence({
+        studentId: student.id,
+        skillId: targetSkillId,
+        proficiencyLevel,
+      });
+    } catch (evErr) {
+      console.error('Failed to record self declared evidence:', evErr);
+    }
+
     res.status(201).json(skillProfile);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to add skill.' });
@@ -1004,6 +1138,19 @@ export const updateStudentSkill = async (req: AuthRequest, res: Response): Promi
         skill: { include: { category: true } },
       },
     });
+
+    // Update self-declared evidence level
+    try {
+      if (updated.skillId) {
+        await recordSelfDeclaredEvidence({
+          studentId: student.id,
+          skillId: updated.skillId,
+          proficiencyLevel,
+        });
+      }
+    } catch (evErr) {
+      console.error('Failed to update self declared evidence:', evErr);
+    }
 
     res.json(updated);
   } catch (error: any) {
@@ -1033,7 +1180,165 @@ export const deleteStudentSkill = async (req: AuthRequest, res: Response): Promi
   }
 };
 
+// Academic Reports & Transcripts Management
+export const getStudentAcademicReports = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+
+    const reports = await prisma.studentAcademicReport.findMany({
+      where: { studentId: student.id },
+      orderBy: [{ academicYear: 'desc' }, { semester: 'desc' }],
+    });
+
+    res.json(reports);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch academic reports.' });
+  }
+};
+
+export const addAcademicReport = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+
+    const {
+      reportType = 'SEMESTER_MARKSHEET',
+      academicYear,
+      semester,
+      institution,
+      degree,
+      department,
+      yearOfStudy,
+      cgpa,
+      percentage,
+      description,
+      documentUrl,
+    } = req.body;
+
+    if (!academicYear || !semester) {
+      res.status(400).json({ message: 'Academic year and semester are required.' });
+      return;
+    }
+
+    const report = await prisma.studentAcademicReport.create({
+      data: {
+        studentId: student.id,
+        reportType,
+        academicYear,
+        semester,
+        institution: institution || student.institutionName,
+        degree: degree || student.degree,
+        department: department || student.department,
+        yearOfStudy: yearOfStudy || (student.currentYear ? `${student.currentYear}th Year` : null),
+        cgpa: cgpa !== undefined && cgpa !== null && cgpa !== '' ? parseFloat(cgpa) : null,
+        percentage: percentage !== undefined && percentage !== null && percentage !== '' ? parseFloat(percentage) : null,
+        description: description || null,
+        documentUrl: documentUrl || null,
+        verificationStatus: 'PENDING',
+      },
+    });
+
+    res.status(201).json(report);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to add academic report.' });
+  }
+};
+
+export const updateAcademicReport = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+
+    const {
+      reportType,
+      academicYear,
+      semester,
+      institution,
+      degree,
+      department,
+      yearOfStudy,
+      cgpa,
+      percentage,
+      description,
+      documentUrl,
+    } = req.body;
+
+    const updated = await prisma.studentAcademicReport.update({
+      where: { id },
+      data: {
+        reportType,
+        academicYear,
+        semester,
+        institution,
+        degree,
+        department,
+        yearOfStudy,
+        cgpa: cgpa !== undefined && cgpa !== null && cgpa !== '' ? parseFloat(cgpa) : null,
+        percentage: percentage !== undefined && percentage !== null && percentage !== '' ? parseFloat(percentage) : null,
+        description: description || null,
+        documentUrl: documentUrl || null,
+        verificationStatus: 'PENDING',
+        verifiedById: null,
+        verifiedAt: null,
+      },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update academic report.' });
+  }
+};
+
+export const deleteAcademicReport = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+
+    await prisma.studentAcademicReport.deleteMany({
+      where: { id, studentId: student.id },
+    });
+
+    res.json({ message: 'Academic report removed.' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to delete academic report.' });
+  }
+};
+
 // Achievements Management
+export const getStudentAchievements = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+
+    const achievements = await prisma.studentAchievement.findMany({
+      where: { studentId: student.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(achievements);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch achievements.' });
+  }
+};
+
 export const addAchievement = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
@@ -1042,7 +1347,19 @@ export const addAchievement = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const { title, category, date, description } = req.body;
+    const {
+      title,
+      achievementType,
+      category,
+      issuer,
+      level,
+      position,
+      relatedSkills,
+      date,
+      description,
+      documentUrl,
+    } = req.body;
+
     if (!title) {
       res.status(400).json({ message: 'Title is required.' });
       return;
@@ -1052,9 +1369,15 @@ export const addAchievement = async (req: AuthRequest, res: Response): Promise<v
       data: {
         studentId: student.id,
         title,
-        category,
-        date,
-        description,
+        achievementType: achievementType || null,
+        category: category || null,
+        issuer: issuer || null,
+        level: level || null,
+        position: position || null,
+        relatedSkills: Array.isArray(relatedSkills) ? relatedSkills.join(', ') : relatedSkills || null,
+        date: date || null,
+        description: description || null,
+        documentUrl: documentUrl || null,
         verificationStatus: 'PENDING',
       },
     });
@@ -1062,6 +1385,53 @@ export const addAchievement = async (req: AuthRequest, res: Response): Promise<v
     res.status(201).json(achievement);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to add achievement.' });
+  }
+};
+
+export const updateAchievement = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+
+    const {
+      title,
+      achievementType,
+      category,
+      issuer,
+      level,
+      position,
+      relatedSkills,
+      date,
+      description,
+      documentUrl,
+    } = req.body;
+
+    const updated = await prisma.studentAchievement.update({
+      where: { id },
+      data: {
+        title,
+        achievementType: achievementType || null,
+        category: category || null,
+        issuer: issuer || null,
+        level: level || null,
+        position: position || null,
+        relatedSkills: Array.isArray(relatedSkills) ? relatedSkills.join(', ') : relatedSkills || null,
+        date: date || null,
+        description: description || null,
+        documentUrl: documentUrl || null,
+        verificationStatus: 'PENDING',
+        verifiedById: null,
+        verifiedAt: null,
+      },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update achievement.' });
   }
 };
 
@@ -1172,6 +1542,7 @@ export const getPublicPortfolio = async (req: any, res: Response): Promise<void>
         user: { select: { email: true, role: true } },
         educations: { orderBy: { startYear: 'desc' } },
         certificates: { orderBy: { createdAt: 'desc' } },
+        academicReports: { orderBy: [{ academicYear: 'desc' }, { semester: 'desc' }] },
         projects: { orderBy: { createdAt: 'desc' } },
         internships: { orderBy: { createdAt: 'desc' } },
         achievements: { orderBy: { createdAt: 'desc' } },
@@ -1691,5 +2062,346 @@ export const getStudentSkillAssessmentsController = async (
     res.json(enhanced);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to fetch student assessments.' });
+  }
+};
+
+// =========================================================================
+// GRANULAR SKILL INTELLIGENCE & PERSONALIZED AI ROADMAP CONTROLLERS
+// =========================================================================
+
+// Get Complete Granular Skill Profile (Strengths, Improvements, Critical Gaps)
+export const getStudentGranularSkills = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const analysis = await analyzeSkillProfile(student.id);
+    res.json(analysis);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch granular skills.' });
+  }
+};
+
+// Get Personalized AI Skill Roadmap with Dynamic Phases & Rationale
+export const getStudentRoadmap = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { opportunityId, targetCareer } = req.query;
+    const roadmap = await generateSkillRoadmap(
+      student.id,
+      typeof opportunityId === 'string' ? opportunityId : undefined,
+      typeof targetCareer === 'string' ? targetCareer : undefined
+    );
+    res.json(roadmap);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to generate roadmap.' });
+  }
+};
+
+// Get Historical Skill Growth Snapshots and Improvement Deltas
+export const getStudentSkillGrowth = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { subSkillId } = req.query;
+    const growth = await calculateSkillGrowth(
+      student.id,
+      typeof subSkillId === 'string' ? subSkillId : undefined
+    );
+    res.json(growth);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch skill growth.' });
+  }
+};
+
+// Update Career Goal / Target Role & Adapt Roadmap Dynamically
+export const setStudentCareerTarget = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { targetCareer } = req.body;
+    if (!targetCareer) {
+      res.status(400).json({ message: 'Target career is required.' });
+      return;
+    }
+    await prisma.studentProfile.update({
+      where: { id: student.id },
+      data: { targetCareer },
+    });
+    const roadmap = await generateSkillRoadmap(student.id, undefined, targetCareer);
+    res.json({ message: 'Career target updated successfully.', targetCareer, roadmap });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update career target.' });
+  }
+};
+
+// Calculate Granular Industry Readiness Diagnostic for a Specific Opportunity
+export const getStudentIndustryReadiness = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const opportunityId = req.params.opportunityId as string;
+    const readiness = await calculateIndustryReadiness(student.id, opportunityId);
+    res.json(readiness);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to calculate industry readiness.' });
+  }
+};
+
+// Reassess Sub-Skill / Practice Evaluation Loop
+export const reassessStudentSubSkill = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { subSkillId, scorePercentage } = req.body;
+    if (!subSkillId || scorePercentage === undefined) {
+      res.status(400).json({ message: 'subSkillId and scorePercentage are required.' });
+      return;
+    }
+    const result = await recordSubSkillReassessment({
+      studentId: student.id,
+      subSkillId,
+      newScore: parseFloat(scorePercentage),
+    });
+    const updatedRoadmap = await generateSkillRoadmap(student.id);
+    res.json({
+      message: 'Sub-skill reassessment recorded successfully.',
+      ...result,
+      result,
+      roadmap: updatedRoadmap,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to record reassessment.' });
+  }
+};
+
+// =========================================================================
+// CAREER ROLE & DYNAMIC ROADMAP CONTROLLERS
+// =========================================================================
+
+// List all career roles with required skills and competencies
+export const getCareerRoles = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const roles = await prisma.careerRole.findMany({
+      include: {
+        roleSkills: {
+          include: {
+            subSkill: {
+              include: { skill: true, topics: true },
+            },
+          },
+          orderBy: { importanceOrder: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+    res.json(roles);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch career roles.' });
+  }
+};
+
+// Get specific career role readiness analysis for the logged-in student
+export const getCareerRoleById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const readiness = await calculateRoleReadiness(student.id, id);
+    res.json(readiness);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch career role readiness.' });
+  }
+};
+
+// Update student's target career role and recalculate dynamic roadmap
+export const updateStudentCareerTarget = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { careerRoleId, targetCareer } = req.body;
+    let targetRole = null;
+    if (careerRoleId) {
+      targetRole = await prisma.careerRole.findUnique({ where: { id: careerRoleId } });
+    } else if (targetCareer) {
+      targetRole = await prisma.careerRole.findFirst({
+        where: { name: { contains: targetCareer, mode: 'insensitive' } },
+      });
+    }
+
+    if (!targetRole) {
+      await prisma.studentProfile.update({
+        where: { id: student.id },
+        data: { targetCareer: targetCareer || 'Specialist' },
+      });
+      const roadmap = await getActiveRoadmap(student.id);
+      res.json({ message: 'Career target updated.', targetCareer: targetCareer || 'Specialist', roadmap });
+      return;
+    }
+
+    await prisma.studentProfile.update({
+      where: { id: student.id },
+      data: {
+        targetRoleId: targetRole.id,
+        targetCareer: targetRole.name,
+      },
+    });
+
+    const roadmap = await generateRoleRoadmap(student.id, targetRole.id);
+    res.json({
+      message: `Career target updated to "${targetRole.name}". Dynamic roadmap recalculated!`,
+      targetRole,
+      roadmap,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update career target.' });
+  }
+};
+
+// Get the active dynamic roadmap (or generate for role/opportunity query params)
+export const getStudentActiveRoadmap = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { careerRoleId, opportunityId } = req.query;
+    if (typeof careerRoleId === 'string' && careerRoleId.trim()) {
+      const roadmap = await generateRoleRoadmap(student.id, careerRoleId.trim());
+      res.json(roadmap);
+      return;
+    }
+    if (typeof opportunityId === 'string' && opportunityId.trim()) {
+      const roadmap = await generateOpportunityRoadmap(student.id, opportunityId.trim());
+      res.json(roadmap);
+      return;
+    }
+    const roadmap = await getActiveRoadmap(student.id);
+    res.json(roadmap);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to get active roadmap.' });
+  }
+};
+
+// Generate roadmap explicitly with POST payload
+export const generateCustomRoadmap = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { careerRoleId, opportunityId } = req.body;
+    if (careerRoleId) {
+      const roadmap = await generateRoleRoadmap(student.id, careerRoleId);
+      res.json(roadmap);
+      return;
+    }
+    if (opportunityId) {
+      const roadmap = await generateOpportunityRoadmap(student.id, opportunityId);
+      res.json(roadmap);
+      return;
+    }
+    const roadmap = await getActiveRoadmap(student.id);
+    res.json(roadmap);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to generate roadmap.' });
+  }
+};
+
+// Get historical roadmap versions
+export const getStudentRoadmapHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const history = await getRoadmapHistory(student.id);
+    res.json(history);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch roadmap history.' });
+  }
+};
+
+// Adaptive reassessment loop with roadmap recalculation
+export const reassessStudentSkill = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const { subSkillId, scorePercentage } = req.body;
+    if (!subSkillId || scorePercentage === undefined) {
+      res.status(400).json({ message: 'subSkillId and scorePercentage are required.' });
+      return;
+    }
+    const result = await updateRoadmapAfterReassessment({
+      studentId: student.id,
+      subSkillId,
+      newScore: parseFloat(scorePercentage),
+    });
+    res.json({
+      message: 'Adaptive reassessment recorded and roadmap updated.',
+      ...result,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to reassess skill.' });
+  }
+};
+
+// Evidence-Based Skill Verification Profile
+export const getStudentEvidenceProfileController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const evidenceProfile = await getStudentSkillEvidenceProfile(student.id);
+    res.json(evidenceProfile);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch evidence-based skill profile.' });
+  }
+};
+
+// Evidence Timeline
+export const getStudentEvidenceTimelineController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+    const timeline = await getEvidenceTimeline(student.id);
+    res.json(timeline);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch evidence timeline.' });
   }
 };

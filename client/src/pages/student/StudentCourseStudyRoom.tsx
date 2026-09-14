@@ -215,14 +215,14 @@ export const StudentCourseStudyRoom: React.FC = () => {
               </div>
 
               {activeLesson.videoUrl && (
-                <div className="rounded-2xl overflow-hidden bg-slate-900 p-4 text-center text-white text-xs">
-                  <PlayCircle className="w-8 h-8 mx-auto mb-2 text-brand-400" />
+                <div className="rounded-2xl overflow-hidden bg-brand-50 dark:bg-slate-900 border border-brand-200 dark:border-slate-800 p-4 text-center text-slate-900 dark:text-white text-xs">
+                  <PlayCircle className="w-8 h-8 mx-auto mb-2 text-brand-600 dark:text-brand-400" />
                   <p className="font-semibold">Lecture Video Stream</p>
                   <a
                     href={activeLesson.videoUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 inline-block text-[11px] text-brand-300 underline"
+                    className="mt-2 inline-block text-[11px] text-brand-600 dark:text-brand-300 underline"
                   >
                     Open Video Lecture ({activeLesson.videoUrl})
                   </a>
@@ -292,7 +292,7 @@ export const StudentCourseStudyRoom: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowCertModal(false)}
-              className="w-full py-2.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-all"
+              className="w-full py-2.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl transition-all shadow-sm"
             >
               Close Window
             </button>

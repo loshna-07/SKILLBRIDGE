@@ -4,6 +4,8 @@ import {
   updateIndustryProfile,
   getIndustryRecommendedCandidatesController,
   getIndustryRecommendationsController,
+  getIndustryPartnershipsController,
+  requestIndustryPartnershipController,
 } from '../controllers/industryController';
 import { authenticateUser, authorizeRoles } from '../middleware/authMiddleware';
 
@@ -15,4 +17,9 @@ router.put('/profile', authenticateUser, authorizeRoles('INDUSTRY'), updateIndus
 router.get('/recommended-candidates', authenticateUser, authorizeRoles('INDUSTRY'), getIndustryRecommendedCandidatesController);
 router.get('/recommendations', authenticateUser, authorizeRoles('INDUSTRY'), getIndustryRecommendationsController);
 
+// Industry-Institution Partnerships
+router.get('/partnerships', authenticateUser, authorizeRoles('INDUSTRY'), getIndustryPartnershipsController);
+router.post('/partnerships/request', authenticateUser, authorizeRoles('INDUSTRY'), requestIndustryPartnershipController);
+
 export default router;
+

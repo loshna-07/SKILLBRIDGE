@@ -804,7 +804,7 @@ export const CourseProviderHub: React.FC<CourseProviderHubProps> = ({
             <button
               type="button"
               onClick={() => setSyllabusCourse(null)}
-              className="w-full py-2.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition-all"
+              className="w-full py-2.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl transition-all shadow-sm"
             >
               Done & Close Builder
             </button>

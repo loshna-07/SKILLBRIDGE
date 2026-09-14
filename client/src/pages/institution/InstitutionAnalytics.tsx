@@ -475,7 +475,7 @@ export const InstitutionAnalytics: React.FC = () => {
                 <div className="space-y-3 pt-2">
                   {dimensions.placementPipeline.stages.map((stage: any, idx: number) => {
                     const colors = [
-                      'bg-slate-800 text-white',
+                      'bg-sky-600 text-white',
                       'bg-blue-600 text-white',
                       'bg-purple-600 text-white',
                       'bg-emerald-600 text-white',

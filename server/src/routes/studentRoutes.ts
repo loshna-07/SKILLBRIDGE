@@ -14,6 +14,10 @@ import {
   addCertification,
   updateCertification,
   deleteCertification,
+  getStudentAcademicReports,
+  addAcademicReport,
+  updateAcademicReport,
+  deleteAcademicReport,
   addProject,
   deleteProject,
   addInternshipExperience,
@@ -38,12 +42,29 @@ import {
   getStudentRecommendedIndustriesController,
   getStudentRecommendedJobRolesController,
   getStudentSkillAssessmentsController,
+  getStudentAchievements,
   addAchievement,
+  updateAchievement,
   deleteAchievement,
   addTraining,
   deleteTraining,
   updateResume,
   getPublicPortfolio,
+  getStudentGranularSkills,
+  getStudentRoadmap,
+  getStudentSkillGrowth,
+  setStudentCareerTarget,
+  getStudentIndustryReadiness,
+  reassessStudentSubSkill,
+  getCareerRoles,
+  getCareerRoleById,
+  updateStudentCareerTarget,
+  getStudentActiveRoadmap,
+  generateCustomRoadmap,
+  getStudentRoadmapHistory,
+  reassessStudentSkill,
+  getStudentEvidenceProfileController,
+  getStudentEvidenceTimelineController,
 } from '../controllers/studentController';
 import { authenticateUser, authorizeRoles } from '../middleware/authMiddleware';
 
@@ -59,6 +80,10 @@ router.get('/dashboard', authorizeRoles('STUDENT'), getStudentDashboard);
 router.get('/profile', authorizeRoles('STUDENT'), getStudentProfile);
 router.put('/profile', authorizeRoles('STUDENT'), updateStudentProfile);
 
+// Evidence-Based Skill Verification & Profile
+router.get('/evidence-profile', authorizeRoles('STUDENT'), getStudentEvidenceProfileController);
+router.get('/evidence-timeline', authorizeRoles('STUDENT'), getStudentEvidenceTimelineController);
+
 // Skills Management
 router.get('/skills', authorizeRoles('STUDENT'), getStudentSkills);
 router.post('/skills', authorizeRoles('STUDENT'), addStudentSkill);
@@ -72,6 +97,14 @@ router.put('/interests', authorizeRoles('STUDENT'), updateStudentInterests);
 router.put('/career-interests', authorizeRoles('STUDENT'), updateStudentInterests);
 router.post('/career-interests', authorizeRoles('STUDENT'), updateStudentInterests);
 
+// Career Roles & Dynamic Role Roadmaps
+router.get('/career-roles', authorizeRoles('STUDENT'), getCareerRoles);
+router.get('/career-roles/:id', authorizeRoles('STUDENT'), getCareerRoleById);
+router.post('/career-target', authorizeRoles('STUDENT'), updateStudentCareerTarget);
+router.get('/roadmap', authorizeRoles('STUDENT'), getStudentActiveRoadmap);
+router.post('/roadmap/generate', authorizeRoles('STUDENT'), generateCustomRoadmap);
+router.get('/roadmap/history', authorizeRoles('STUDENT'), getStudentRoadmapHistory);
+router.post('/reassess-skill', authorizeRoles('STUDENT'), reassessStudentSkill);
 
 // Skill Assessment & Skill Mapping Routes
 router.get('/skill-profile', authorizeRoles('STUDENT'), getStudentSkillProfileController);
@@ -79,6 +112,11 @@ router.get('/skill-mapping', authorizeRoles('STUDENT'), getStudentSkillMappingCo
 router.get('/recommended-industries', authorizeRoles('STUDENT'), getStudentRecommendedIndustriesController);
 router.get('/recommended-job-roles', authorizeRoles('STUDENT'), getStudentRecommendedJobRolesController);
 router.get('/skill-assessment', authorizeRoles('STUDENT'), getStudentSkillAssessmentsController);
+
+// Granular Skill Intelligence & Legacy Compatibility Routes
+router.get('/granular-skills', authorizeRoles('STUDENT'), getStudentGranularSkills);
+router.get('/skill-growth', authorizeRoles('STUDENT'), getStudentSkillGrowth);
+router.get('/industry-readiness/:opportunityId', authorizeRoles('STUDENT'), getStudentIndustryReadiness);
 
 // Personalization & Recommendations
 router.get('/recommendations', authorizeRoles('STUDENT'), getStudentPersonalizedRecommendations);
@@ -98,6 +136,18 @@ router.post('/certifications', authorizeRoles('STUDENT'), addCertification);
 router.put('/certifications/:id', authorizeRoles('STUDENT'), updateCertification);
 router.delete('/certifications/:id', authorizeRoles('STUDENT'), deleteCertification);
 
+// Academic Reports & Transcripts Management
+router.get('/academic-reports', authorizeRoles('STUDENT'), getStudentAcademicReports);
+router.post('/academic-reports', authorizeRoles('STUDENT'), addAcademicReport);
+router.put('/academic-reports/:id', authorizeRoles('STUDENT'), updateAcademicReport);
+router.delete('/academic-reports/:id', authorizeRoles('STUDENT'), deleteAcademicReport);
+
+// Achievements Management
+router.get('/achievements', authorizeRoles('STUDENT'), getStudentAchievements);
+router.post('/achievements', authorizeRoles('STUDENT'), addAchievement);
+router.put('/achievements/:id', authorizeRoles('STUDENT'), updateAchievement);
+router.delete('/achievements/:id', authorizeRoles('STUDENT'), deleteAchievement);
+
 router.get('/applications', authorizeRoles('STUDENT'), getStudentApplications);
 router.post('/applications/:id/withdraw', authorizeRoles('STUDENT'), withdrawApplication);
 
@@ -111,6 +161,10 @@ router.delete('/portfolio/education/:id', authorizeRoles('STUDENT'), deleteEduca
 // Certifications
 router.post('/portfolio/certifications', authorizeRoles('STUDENT'), addCertification);
 router.delete('/portfolio/certifications/:id', authorizeRoles('STUDENT'), deleteCertification);
+
+// Academic Reports
+router.post('/portfolio/academic-reports', authorizeRoles('STUDENT'), addAcademicReport);
+router.delete('/portfolio/academic-reports/:id', authorizeRoles('STUDENT'), deleteAcademicReport);
 
 // Projects
 router.post('/portfolio/projects', authorizeRoles('STUDENT'), addProject);

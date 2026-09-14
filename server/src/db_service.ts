@@ -17,6 +17,12 @@ export const pgServer: any = new EmbeddedPostgres({
 });
 
 export async function startDatabase(): Promise<void> {
+  const dbUrl = process.env.DATABASE_URL || '';
+  if (dbUrl && !dbUrl.includes('localhost:5432') && !dbUrl.includes('127.0.0.1:5432')) {
+    console.log('[PostgreSQL] Using external managed database specified in DATABASE_URL.');
+    return;
+  }
+
   try {
     console.log('[PostgreSQL] Initialising cluster in', DB_DIR);
     await pgServer.initialise();

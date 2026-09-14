@@ -137,3 +137,90 @@ export const getIndustryRecommendationsController = async (req: AuthRequest, res
     res.status(500).json({ message: error.message || 'Failed to fetch industry recommendations.' });
   }
 };
+
+// Industry Partnerships with Institutions
+export const getIndustryPartnershipsController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const industry = await prisma.industryProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+
+    if (!industry) {
+      res.status(404).json({ message: 'Industry profile not found.' });
+      return;
+    }
+
+    const partnerships = await prisma.industryInstitutionPartnership.findMany({
+      where: { industryId: industry.id },
+      include: {
+        institution: {
+          select: {
+            id: true,
+            institutionName: true,
+            institutionType: true,
+            officialEmail: true,
+            affiliatedUniversity: true,
+            verificationStatus: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(partnerships);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch partnerships.' });
+  }
+};
+
+export const requestIndustryPartnershipController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const industry = await prisma.industryProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+
+    if (!industry) {
+      res.status(404).json({ message: 'Industry profile not found.' });
+      return;
+    }
+
+    const { institutionId, partnershipType = 'ACADEMIA_INDUSTRY_MOU', proposalDetails, proposalNote } = req.body;
+
+    if (!institutionId) {
+      res.status(400).json({ message: 'Institution ID is required.' });
+      return;
+    }
+
+    const note = proposalNote || proposalDetails || null;
+
+    // Upsert or create partnership
+    const partnership = await prisma.industryInstitutionPartnership.upsert({
+      where: {
+        industryId_institutionId: {
+          industryId: industry.id,
+          institutionId,
+        },
+      },
+      create: {
+        industryId: industry.id,
+        institutionId,
+        partnershipType,
+        status: 'PENDING',
+        proposalNote: note,
+      },
+      update: {
+        partnershipType,
+        status: 'PENDING',
+        proposalNote: note,
+      },
+      include: {
+        institution: true,
+      },
+    });
+
+    res.status(201).json({ message: 'Partnership request submitted successfully.', partnership });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to submit partnership request.' });
+  }
+};
+

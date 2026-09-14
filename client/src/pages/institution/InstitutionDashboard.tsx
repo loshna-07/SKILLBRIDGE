@@ -156,6 +156,101 @@ export const InstitutionDashboard: React.FC = () => {
         />
       </div>
 
+      {/* Connected Student Industry Engagement & Tripartite Demonstration */}
+      <div className="rounded-3xl bg-gradient-to-br from-emerald-950 via-teal-950 to-slate-900 text-white p-6 sm:p-8 border border-emerald-500/30 shadow-xl space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-emerald-800/60 pb-5">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              Four-Portal Collaborative Engagement
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Student Industry Engagement & Research Collaboration
+            </h2>
+            <p className="text-xs text-emerald-200/90">
+              Active Tripartite Project: <strong>Sri Dhanvantari Ayurveda College</strong> &bull; <strong>Dhanvantari Wellness Pvt Ltd</strong> &bull; <strong>Dr. Ananya Krishnan</strong>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/institution/students"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-emerald-950 bg-emerald-300 hover:bg-emerald-200 rounded-xl shadow-md transition-all"
+            >
+              <span>View Student Journey Timeline</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Student Profile Card */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-emerald-500/20 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 block">Candidate</span>
+            <h3 className="font-bold text-white text-sm">
+              {data?.studentIndustryEngagement?.studentName || 'Ananya Iyer'}
+            </h3>
+            <p className="text-xs text-emerald-200/80">
+              {data?.studentIndustryEngagement?.studentDegree || 'BAMS (Year 4)'} &bull; CGPA: {data?.studentIndustryEngagement?.studentCgpa || '8.6'}
+            </p>
+            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+              <span className="text-slate-300">Match Score:</span>
+              <span className="font-black text-emerald-300">{data?.studentIndustryEngagement?.matchScore || 88}%</span>
+            </div>
+          </div>
+
+          {/* Industry Vacancy */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-emerald-500/20 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300 block">Industry Partner</span>
+            <h3 className="font-bold text-white text-sm">
+              {data?.studentIndustryEngagement?.industryPartner || 'Dhanvantari Wellness Pvt Ltd'}
+            </h3>
+            <p className="text-xs text-slate-300 line-clamp-1">
+              {data?.studentIndustryEngagement?.opportunityTitle || 'Digital Panchakarma & Ayurvedic Wellness Research Internship'}
+            </p>
+            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+              <span className="text-slate-300">Recruiter Status:</span>
+              <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 uppercase">
+                {data?.studentIndustryEngagement?.applicationStatus || 'SHORTLISTED'}
+              </span>
+            </div>
+          </div>
+
+          {/* Assessment Score */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-emerald-500/20 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 block">Industry Assessment</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-emerald-300">
+                {data?.studentIndustryEngagement?.assessmentScore || 86}%
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/30 text-emerald-200">
+                PASSED (≥75%)
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 line-clamp-1">
+              {data?.studentIndustryEngagement?.assessmentTitle || 'Panchakarma & Ayurvedic Clinical Research Assessment'}
+            </p>
+          </div>
+
+          {/* Academic Mentor & Course */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-emerald-500/20 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 block">Faculty Mentor & Course</span>
+            <h3 className="font-bold text-white text-xs truncate">
+              {data?.studentIndustryEngagement?.academicMentor || 'Dr. Ananya Krishnan'}
+            </h3>
+            <p className="text-[11px] text-slate-300 line-clamp-1">
+              {data?.studentIndustryEngagement?.courseTitle || 'Applied Ayurvedic Clinical Research & Scientific Writing'}
+            </p>
+            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+              <span className="text-slate-300">Learning Progress:</span>
+              <span className="font-bold text-amber-300">
+                {data?.studentIndustryEngagement?.courseProgress ?? 0}% Enrolled
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 3. Interactive Branch-Level Analytics Section */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">

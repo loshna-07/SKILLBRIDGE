@@ -12,6 +12,10 @@ import {
   Search,
   Users,
   Star,
+  ShieldCheck,
+  Clock,
+  XCircle,
+  ExternalLink,
 } from 'lucide-react';
 
 const COLLAB_TYPES = [
@@ -29,8 +33,9 @@ const COLLAB_TYPES = [
 export const InstitutionCollaboration: React.FC = () => {
   const [collaborations, setCollaborations] = useState<any[]>([]);
   const [myCollaborations, setMyCollaborations] = useState<any[]>([]);
+  const [partnerships, setPartnerships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'my' | 'all'>('my');
+  const [activeTab, setActiveTab] = useState<'partnerships' | 'my' | 'all'>('partnerships');
 
   const [selectedType, setSelectedType] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,7 +46,7 @@ export const InstitutionCollaboration: React.FC = () => {
     title: '',
     type: 'INDUSTRY_VISIT',
     description: '',
-    targetAudience: 'BAMS & Biotechnology Students and Faculty',
+    targetAudience: 'Students and Recognized Faculty',
     mode: 'OFFLINE',
     location: 'Main Campus / Industrial Unit',
     duration: '1 Day',
@@ -52,7 +57,7 @@ export const InstitutionCollaboration: React.FC = () => {
   const fetchCollabs = async () => {
     setLoading(true);
     try {
-      const [allRes, myRes] = await Promise.all([
+      const [allRes, myRes, partRes] = await Promise.all([
         api.get('/collaboration', {
           params: {
             type: selectedType,
@@ -60,9 +65,11 @@ export const InstitutionCollaboration: React.FC = () => {
           },
         }),
         api.get('/collaboration/my/created'),
+        api.get('/institution/partnerships').catch(() => ({ data: [] })),
       ]);
       setCollaborations(allRes.data);
       setMyCollaborations(myRes.data);
+      setPartnerships(Array.isArray(partRes.data) ? partRes.data : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -85,7 +92,7 @@ export const InstitutionCollaboration: React.FC = () => {
         title: '',
         type: 'INDUSTRY_VISIT',
         description: '',
-        targetAudience: 'BAMS & Biotechnology Students and Faculty',
+        targetAudience: 'Students and Recognized Faculty',
         mode: 'OFFLINE',
         location: 'Main Campus / Industrial Unit',
         duration: '1 Day',
@@ -101,269 +108,239 @@ export const InstitutionCollaboration: React.FC = () => {
     }
   };
 
+  const handleRespondPartnership = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await api.post(`/institution/partnerships/${id}/respond`, { status });
+      fetchCollabs();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update partnership status.');
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            Institutional MoUs & Collaboration Gateway
+      {/* 1. Header Banner */}
+      <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-brand-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-emerald-500/10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/20 backdrop-blur border border-white/20 mb-3">
+              <Sparkles className="w-3.5 h-3.5" />
+              Institutional Industry Collaboration Hub
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Industry Partnerships & MoUs</h1>
+            <p className="text-xs sm:text-sm text-emerald-100 mt-1 max-w-2xl">
+              Connect directly with verified industry leaders for MoUs, joint research laboratories, clinical trials, and student internship pipelines.
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Industry-Academia Partnerships</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Establish institutional MoUs, industrial tours, collaborative laboratories, and corporate-sponsored incubation challenges.
-          </p>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold shadow-sm transition-all shrink-0"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Post New Initiative
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm shrink-0"
-        >
-          <PlusCircle className="w-4 h-4" />
-          Propose Partnership
-        </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200">
+      {/* 2. Tabs */}
+      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-2">
         <button
-          onClick={() => setActiveTab('my')}
-          className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 ${
-            activeTab === 'my'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+          onClick={() => setActiveTab('partnerships')}
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            activeTab === 'partnerships'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          Our Proposed Partnerships ({myCollaborations.length})
+          Official Industry MoUs ({partnerships.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('my')}
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            activeTab === 'my'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          My Posted Initiatives ({myCollaborations.length})
         </button>
         <button
           onClick={() => setActiveTab('all')}
-          className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 ${
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
             activeTab === 'all'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          All Active Partnerships ({collaborations.length})
+          All Active Collaborative Programs ({collaborations.length})
         </button>
       </div>
 
-      {/* Filter / Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search partnerships by title, corporate partner, or keywords..."
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-          />
-        </div>
-
-        <select
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-        >
-          {COLLAB_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-        </div>
-      ) : activeTab === 'my' ? (
-        myCollaborations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {myCollaborations.map((collab) => (
-              <div
-                key={collab.id}
-                className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between space-y-4 hover:shadow transition-shadow"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-base font-bold text-slate-900">{collab.title}</h3>
-                    <Badge variant="success" size="sm">
-                      {collab.type.replace('_', ' ')}
-                    </Badge>
+      {/* 3. Partnerships Tab */}
+      {activeTab === 'partnerships' && (
+        <div className="space-y-4">
+          {partnerships.length === 0 ? (
+            <EmptyState
+              icon={Building}
+              title="No industry partnerships established yet"
+              description="Enterprises seeking academic and clinical MoUs with your institution will appear here for review."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {partnerships.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <Building className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {p.industry?.companyName || 'Enterprise Partner'}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {p.industry?.industrySector} &bull; {p.industry?.location || 'India'}
+                        </p>
+                      </div>
+                    </div>
+                    {p.status === 'APPROVED' ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Active MoU
+                      </span>
+                    ) : p.status === 'REJECTED' ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                        <XCircle className="w-3.5 h-3.5 text-rose-600" /> Declined
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" /> Pending Approval
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed mb-3">{collab.description}</p>
-                  {collab.targetAudience && (
-                    <p className="text-[11px] text-slate-500">
-                      <span className="font-semibold text-slate-700">Audience: </span>
-                      {collab.targetAudience}
-                    </p>
-                  )}
-                  {collab.budget && (
-                    <p className="text-[11px] text-emerald-700 font-semibold mt-1">
-                      Budget / Allocation: {collab.budget}
-                    </p>
-                  )}
-                </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">
-                    {collab.applications?.length || 0} Registered Applicants
-                  </span>
-                  <Badge variant="success" size="sm">
-                    {collab.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={Building}
-            title="No institutional initiatives proposed yet"
-            description="Initiate MoUs, sponsored incubation challenges, and industrial visit proposals here."
-            actionText="Propose Partnership"
-            onAction={() => setModalOpen(true)}
-          />
-        )
-      ) : (
-        collaborations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {collaborations.map((collab) => (
-              <div
-                key={collab.id}
-                className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between space-y-4 hover:shadow transition-shadow"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-base font-bold text-slate-900">{collab.title}</h3>
-                    <Badge variant="success" size="sm">
-                      {collab.type.replace('_', ' ')}
-                    </Badge>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-xs space-y-1">
+                    <div className="text-slate-500 dark:text-slate-400 font-semibold">
+                      Partnership Scope: <span className="text-slate-800 dark:text-slate-200 font-bold">{p.partnershipType?.replace(/_/g, ' ')}</span>
+                    </div>
+                    {p.proposalNote && (
+                      <p className="text-slate-600 dark:text-slate-300 italic pt-1 border-t border-slate-200 dark:border-slate-700">
+                        "{p.proposalNote}"
+                      </p>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed mb-3">{collab.description}</p>
-                  <p className="text-[11px] text-slate-500">
-                    <span className="font-semibold text-slate-700">Initiator: </span>
-                    {collab.initiatorInfo?.name || collab.initiatorRole}
-                  </p>
-                </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Mode: {collab.mode}</span>
-                  <Badge variant="success" size="sm">
-                    {collab.status}
-                  </Badge>
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-[11px] text-slate-400">
+                      Requested: {new Date(p.requestedAt || p.createdAt).toLocaleDateString()}
+                    </span>
+                    {p.status === 'PENDING' && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRespondPartnership(p.id, 'APPROVED')}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+                        >
+                          Approve MoU
+                        </button>
+                        <button
+                          onClick={() => handleRespondPartnership(p.id, 'REJECTED')}
+                          className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-700 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-xl transition-all"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={Search}
-            title="No partnerships match this filter"
-            description="Try choosing another partnership type or clearing your keyword filter."
-          />
-        )
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Propose Partnership Initiative">
+      {/* 4. My Initiatives & All Collaborations */}
+      {activeTab !== 'partnerships' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(activeTab === 'my' ? myCollaborations : collaborations).map((c) => (
+              <div
+                key={c.id}
+                className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">{c.title}</h3>
+                  <Badge variant="info">{c.type?.replace(/_/g, ' ')}</Badge>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">{c.description}</p>
+                <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div>
+                    <span className="text-slate-400">Target:</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200">{c.targetAudience}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Location / Mode:</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200">{c.location} ({c.mode})</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: New Initiative */}
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Create New Institutional Initiative">
         <form onSubmit={handleCreate} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Partnership Title *</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Program Title *</label>
             <input
               type="text"
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g., Campus Center of Excellence in Herbal Formulation Analytics"
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+              placeholder="e.g., Joint Clinical Trial Center & Hospital Internship MoU"
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Type *</label>
-              <select
-                value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-              >
-                <option value="INDUSTRY_VISIT">Industry Visit / Tour</option>
-                <option value="WORKSHOP">Joint Workshop</option>
-                <option value="RESEARCH_PROJECT">Research Collaboration & Lab</option>
-                <option value="GUEST_LECTURE">Guest Lecture / Seminar</option>
-                <option value="LIVE_PROJECT">Capstone Live Project</option>
-                <option value="INNOVATION_CHALLENGE">Innovation Challenge</option>
-                <option value="CONSULTANCY">Consultancy</option>
-                <option value="MENTORSHIP">Mentorship</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Mode *</label>
-              <select
-                value={form.mode}
-                onChange={(e) => setForm({ ...form, mode: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-              >
-                <option value="OFFLINE">Offline / On-Site</option>
-                <option value="HYBRID">Hybrid</option>
-                <option value="ONLINE">Online</option>
-              </select>
-            </div>
-          </div>
-
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Description *</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Collaboration Type *</label>
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+            >
+              {COLLAB_TYPES.filter((t) => t.value !== 'ALL').map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Scope & Objectives *</label>
             <textarea
               rows={3}
               required
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Scope of agreement, mutual deliverables, and institutional outcomes..."
-              className="w-full p-3 text-xs rounded-xl border border-slate-200"
+              placeholder="Provide initiative summary, clinical/industrial resources, faculty leads..."
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Target Audience</label>
-              <input
-                type="text"
-                value={form.targetAudience}
-                onChange={(e) => setForm({ ...form, targetAudience: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Budget / Allocation (INR)</label>
-              <input
-                type="text"
-                value={form.budget}
-                onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                placeholder="INR 1,00,000"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
-              />
-            </div>
-          </div>
-
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm disabled:opacity-50"
+              className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl"
             >
-              {submitting ? 'Submitting...' : 'Submit Proposal'}
+              {submitting ? 'Publishing...' : 'Publish Initiative'}
             </button>
           </div>
         </form>

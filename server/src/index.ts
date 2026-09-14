@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 import authRoutes from './routes/authRoutes';
 import studentRoutes from './routes/studentRoutes';
@@ -44,6 +45,7 @@ app.get('/api/health', (_req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/students', studentRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/learning', learningRoutes);
@@ -51,12 +53,25 @@ app.use('/api/matching', matchingRoutes);
 app.use('/api/industry', industryRoutes);
 app.use('/api/academician', academicianRoutes);
 app.use('/api/institution', institutionRoutes);
+app.use('/api/institutions', institutionRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/collaborations', collaborationRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/upload', uploadRoutes);
+
+// Optional single-service production mode: serve compiled frontend
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Error Handler
 app.use(errorHandler);

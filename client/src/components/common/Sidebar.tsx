@@ -10,6 +10,7 @@ import {
   BookOpen,
   Send,
   FileCheck2,
+  Trophy,
   Users,
   PlusCircle,
   Building,
@@ -35,17 +36,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
 
   const studentLinks = [
     { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/student/skills', label: 'My Skills', icon: Award },
-    { to: '/student/certifications', label: 'Certifications', icon: FileCheck2 },
-    { to: '/student/profile', label: 'Profile', icon: User },
-    { to: '/student/assessment', label: 'Skill Assessments', icon: CheckSquare },
-    { to: '/student/skill-mapping', label: 'Skill Mapping & Pathways', icon: TrendingUp },
+    { to: '/student/profile', label: 'My Profile & Portfolio', icon: User },
+    { to: '/student/assessment', label: 'Skill Assessment', icon: CheckSquare },
+    { to: '/student/skill-mapping', label: 'Skill Mapping & Roadmap', icon: TrendingUp },
     { to: '/student/courses', label: 'Learning Hub', icon: BookOpen },
-    { to: '/student/my-courses', label: 'My Enrolled Courses', icon: GraduationCap },
-    { to: '/student/internships', label: 'Internships', icon: Briefcase },
-    { to: '/student/jobs', label: 'Jobs', icon: Briefcase },
+    { to: '/student/my-courses', label: 'My Courses', icon: GraduationCap },
+    { to: '/student/internships', label: 'Opportunities (Internships/Jobs)', icon: Briefcase },
     { to: '/student/applications', label: 'My Applications', icon: Send },
-    { to: '/student/portfolio', label: 'Digital Portfolio', icon: FileText },
     { to: '/student/collaboration', label: 'Mentorship & Collab', icon: Users },
   ];
 

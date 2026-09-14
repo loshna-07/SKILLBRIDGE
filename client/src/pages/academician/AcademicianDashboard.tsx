@@ -108,6 +108,128 @@ export const AcademicianDashboard: React.FC = () => {
         />
       </div>
 
+      {/* Connected Four-Portal Industry-Academia Research Mentorship */}
+      <div className="rounded-3xl bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 text-white p-6 sm:p-8 border border-purple-500/30 shadow-xl space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-purple-700/50 pb-5">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              Connected Tripartite Research Mentorship
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Digital Panchakarma & Ayurvedic Wellness Research Project
+            </h2>
+            <p className="text-xs text-purple-200/90">
+              Tripartite MoU: <strong>Sri Dhanvantari Ayurveda College</strong> &bull; <strong>Dhanvantari Wellness Pvt Ltd</strong> &bull; <strong>Dr. Ananya Krishnan</strong>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Active Project Mentorship
+            </span>
+          </div>
+        </div>
+
+        {/* Mentee Student Card */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Mentee Profile & Score */}
+          <div className="p-5 rounded-2xl bg-white/5 border border-purple-500/20 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                  AI
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">Ananya Iyer</h3>
+                  <p className="text-xs text-purple-300">BAMS 4th Year &bull; CGPA 8.6</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-md bg-purple-500/30 text-purple-200 text-[10px] font-bold">
+                Mentee
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-purple-200">Industry Assessment:</span>
+                <span className="font-black text-emerald-400">86% (PASSED)</span>
+              </div>
+              <div className="text-[11px] text-slate-300">
+                Panchakarma & Ayurvedic Clinical Research Assessment
+              </div>
+              <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-emerald-400 h-full rounded-full" style={{ width: '86%' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Competencies & Gaps Identified */}
+          <div className="p-5 rounded-2xl bg-white/5 border border-purple-500/20 space-y-3.5">
+            <div>
+              <h4 className="text-xs font-bold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5 text-emerald-400" />
+                Demonstrated Strengths (≥75%)
+              </h4>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium">
+                  Ayurvedic Fundamentals (100%)
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium">
+                  Panchakarma (100%)
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-white/10">
+              <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                Target Gaps Addressed By Mentorship
+              </h4>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-medium">
+                  Clinical Research
+                </span>
+                <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-medium">
+                  Research Methodology
+                </span>
+                <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-medium">
+                  Scientific Writing
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bridging Faculty Course */}
+          <div className="p-5 rounded-2xl bg-white/5 border border-purple-500/20 flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">
+                  Faculty Bridging Course
+                </span>
+                <span className="px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-300 text-[10px] font-bold">
+                  Authored by You
+                </span>
+              </div>
+              <h4 className="font-bold text-white text-sm">
+                Applied Ayurvedic Clinical Research & Scientific Writing
+              </h4>
+              <p className="text-xs text-purple-200/80">
+                Curriculum covers clinical trial designs, ethical GCP guidelines, and clinical reporting.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+              <span className="text-xs text-purple-300">Mentee Learning Status:</span>
+              <span className="px-2.5 py-1 rounded-lg bg-purple-500/30 text-purple-200 font-bold text-xs border border-purple-400/30">
+                Enrolled & In Progress
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 9 Modules Quick Access */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">

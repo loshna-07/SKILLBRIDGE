@@ -3,6 +3,10 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { AuthRequest } from '../middleware/authMiddleware';
+import {
+  requestAndSendOtp,
+  verifySubmittedOtp,
+} from '../services/otpService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'skillbridge_secret_fallback_key';
 
@@ -53,6 +57,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           phone,
           dob,
           gender,
+          institutionId,
           institutionName,
           department,
           degree,
@@ -62,8 +67,21 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           location,
         } = req.body;
 
-        if (!fullName || !institutionName || !department || !degree) {
+        if (!fullName || (!institutionName && !institutionId) || !department || !degree) {
           throw new Error('Full name, institution, department, and degree are required for student registration.');
+        }
+
+        let resolvedInstitutionId = institutionId || null;
+        let resolvedInstitutionName = institutionName || '';
+
+        if (resolvedInstitutionId) {
+          const inst = await tx.institutionProfile.findUnique({ where: { id: resolvedInstitutionId } });
+          if (inst) resolvedInstitutionName = inst.institutionName;
+        } else if (resolvedInstitutionName) {
+          const inst = await tx.institutionProfile.findFirst({
+            where: { institutionName: { contains: resolvedInstitutionName, mode: 'insensitive' } },
+          });
+          if (inst) resolvedInstitutionId = inst.id;
         }
 
         await tx.studentProfile.create({
@@ -73,19 +91,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
             phone,
             dob,
             gender,
-            institutionName,
+            institutionId: resolvedInstitutionId,
+            institutionName: resolvedInstitutionName,
             department,
             degree,
             currentYear: currentYear ? parseInt(currentYear, 10) : null,
             cgpa: cgpa ? parseFloat(cgpa) : null,
             graduationYear: graduationYear ? parseInt(graduationYear, 10) : null,
             location,
+            accountStatus: 'PENDING',
+            isVerified: false,
           },
         });
       } else if (role === 'ACADEMICIAN') {
         const {
           fullName,
           phone,
+          institutionId,
           institutionName,
           department,
           designation,
@@ -94,8 +116,21 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           location,
         } = req.body;
 
-        if (!fullName || !institutionName || !department || !designation) {
+        if (!fullName || (!institutionName && !institutionId) || !department || !designation) {
           throw new Error('Full name, institution, department, and designation are required for academician registration.');
+        }
+
+        let resolvedInstitutionId = institutionId || null;
+        let resolvedInstitutionName = institutionName || '';
+
+        if (resolvedInstitutionId) {
+          const inst = await tx.institutionProfile.findUnique({ where: { id: resolvedInstitutionId } });
+          if (inst) resolvedInstitutionName = inst.institutionName;
+        } else if (resolvedInstitutionName) {
+          const inst = await tx.institutionProfile.findFirst({
+            where: { institutionName: { contains: resolvedInstitutionName, mode: 'insensitive' } },
+          });
+          if (inst) resolvedInstitutionId = inst.id;
         }
 
         await tx.academicianProfile.create({
@@ -103,12 +138,15 @@ export const register = async (req: Request, res: Response): Promise<void> => {
             userId: user.id,
             fullName,
             phone,
-            institutionName,
+            institutionId: resolvedInstitutionId,
+            institutionName: resolvedInstitutionName,
             department,
             designation,
             yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience, 10) : null,
             areasOfExpertise,
             location,
+            accountStatus: 'PENDING',
+            isVerified: false,
           },
         });
       } else if (role === 'INDUSTRY') {
@@ -303,3 +341,106 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
 export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
   res.json({ message: 'Logout successful.' });
 };
+
+// =========================================================================
+// SECURE OTP-BASED AUTHENTICATION CONTROLLERS
+// =========================================================================
+
+// Request 6-digit OTP for Email / Mobile
+export const requestOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { identifier } = req.body;
+
+    if (!identifier || typeof identifier !== 'string' || !identifier.trim()) {
+      res.status(400).json({ success: false, message: 'Please enter your registered email address or mobile number.' });
+      return;
+    }
+
+    const result = await requestAndSendOtp({
+      identifier: identifier.trim(),
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    const isNotFound = error.message && error.message.includes('not found');
+    res.status(isNotFound ? 404 : 400).json({ success: false, message: error.message || 'Failed to send OTP.' });
+  }
+};
+
+// Verify 6-digit OTP and Issue Authenticated JWT Session
+export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { identifier, otp } = req.body;
+
+    if (!identifier || !otp) {
+      res.status(400).json({ success: false, message: 'Email/Mobile identifier and 6-digit OTP are required.' });
+      return;
+    }
+
+    const result = await verifySubmittedOtp({
+      identifier: identifier.trim(),
+      otp: otp.toString().trim(),
+    });
+
+    const user = result.user;
+    const token = generateToken(user.id, user.email, user.role);
+
+    // Record login audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'USER_LOGIN_OTP',
+        entityType: 'User',
+        entityId: user.id,
+        details: JSON.stringify({
+          role: user.role,
+          email: user.email,
+          authMethod: 'OTP',
+          ip: req.ip,
+        }),
+      },
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      message: 'OTP verified successfully. Authenticated session created.',
+      token,
+      user,
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to verify OTP.',
+      attemptsRemaining: error.attemptsRemaining,
+    });
+  }
+};
+
+// Resend OTP with Cooldown Protection
+export const resendOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { identifier } = req.body;
+
+    if (!identifier || typeof identifier !== 'string' || !identifier.trim()) {
+      res.status(400).json({ success: false, message: 'Please enter your registered email address or mobile number.' });
+      return;
+    }
+
+    const result = await requestAndSendOtp({
+      identifier: identifier.trim(),
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.json({
+      ...result,
+      message: 'A fresh OTP has been dispatched to your registered credential.',
+    });
+  } catch (error: any) {
+    const isNotFound = error.message && error.message.includes('not found');
+    res.status(isNotFound ? 404 : 400).json({ success: false, message: error.message || 'Failed to resend OTP.' });
+  }
+};
+

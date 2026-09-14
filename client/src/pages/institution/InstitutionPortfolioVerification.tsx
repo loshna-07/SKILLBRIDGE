@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import api from '../../services/api';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Badge } from '../../components/common/Badge';
@@ -16,37 +16,54 @@ import {
   CheckCircle2,
   XCircle,
   ExternalLink,
+  Eye,
+  Calendar,
+  Building2,
+  Filter,
+  CheckSquare,
+  Search,
 } from 'lucide-react';
 
 export const InstitutionPortfolioVerification: React.FC = () => {
-  const [data, setData] = useState<any>({
-    projects: [],
-    certificates: [],
-    internships: [],
-    educations: [],
-    achievements: [],
-    trainings: [],
-    skills: [],
-    resumes: [],
-  });
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Verification modal
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [itemType, setItemType] = useState<
-    'PROJECT' | 'CERTIFICATION' | 'INTERNSHIP' | 'EDUCATION' | 'ACHIEVEMENT' | 'TRAINING' | 'SKILL' | 'RESUME'
-  >('PROJECT');
+  const [itemType, setItemType] = useState<string>('CERTIFICATION');
   const [targetStatus, setTargetStatus] = useState<'VERIFIED' | 'REJECTED'>('VERIFIED');
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Document preview modal
+  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
+  const [previewDocTitle, setPreviewDocTitle] = useState<string>('');
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
   const fetchPending = () => {
     setLoading(true);
     api
       .get('/institution/portfolio/pending')
-      .then((res) => setData(res.data))
-      .catch((err) => console.error(err))
+      .then((res) => {
+        const rawData = res.data;
+        if (Array.isArray(rawData)) {
+          setItems(rawData);
+        } else if (rawData && typeof rawData === 'object') {
+          // If categorized object, flatten with itemType
+          const flattened: any[] = [];
+          Object.entries(rawData).forEach(([key, val]) => {
+            if (Array.isArray(val)) {
+              const mappedType = key.toUpperCase().replace(/S$/, '');
+              val.forEach((item) => flattened.push({ ...item, itemType: item.itemType || mappedType }));
+            }
+          });
+          setItems(flattened);
+        }
+      })
+      .catch((err) => console.error('Failed to load pending items', err))
       .finally(() => setLoading(false));
   };
 
@@ -54,12 +71,19 @@ export const InstitutionPortfolioVerification: React.FC = () => {
     fetchPending();
   }, []);
 
-  const handleOpenAction = (item: any, type: any, status: 'VERIFIED' | 'REJECTED') => {
+  const handleOpenAction = (item: any, type: string, status: 'VERIFIED' | 'REJECTED') => {
     setSelectedItem(item);
-    setItemType(type);
+    setItemType(item.itemType || type);
     setTargetStatus(status);
-    setRemarks(status === 'VERIFIED' ? 'Verified against academic records.' : 'Incomplete documentation.');
+    setRemarks(status === 'VERIFIED' ? 'Verified against institutional academic records.' : 'Incomplete or unclear documentation provided.');
     setVerifyModalOpen(true);
+  };
+
+  const handleOpenDocPreview = (url: string, title: string) => {
+    const fullUrl = url.startsWith('http') ? url : `http://localhost:5000${url}`;
+    setPreviewDocUrl(fullUrl);
+    setPreviewDocTitle(title);
+    setPreviewModalOpen(true);
   };
 
   const handleSubmitVerification = async (e: React.FormEvent) => {
@@ -69,12 +93,11 @@ export const InstitutionPortfolioVerification: React.FC = () => {
     setSubmitting(true);
     try {
       await api.post('/institution/portfolio/verify', {
-        itemType,
+        itemType: selectedItem.itemType || itemType,
         itemId: selectedItem.id,
         status: targetStatus,
         remarks,
       });
-      alert(`Item successfully marked as ${targetStatus}!`);
       setVerifyModalOpen(false);
       fetchPending();
     } catch (err: any) {
@@ -84,529 +107,296 @@ export const InstitutionPortfolioVerification: React.FC = () => {
     }
   };
 
-  const totalPending =
-    (data.projects?.length || 0) +
-    (data.certificates?.length || 0) +
-    (data.internships?.length || 0) +
-    (data.educations?.length || 0) +
-    (data.achievements?.length || 0) +
-    (data.trainings?.length || 0) +
-    (data.skills?.length || 0) +
-    (data.resumes?.length || 0);
+  const categories = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: items.length,
+      CERTIFICATION: 0,
+      ACADEMIC_REPORT: 0,
+      ACHIEVEMENT: 0,
+      SKILL: 0,
+      PROJECT: 0,
+      INTERNSHIP: 0,
+      EDUCATION: 0,
+      RESUME: 0,
+    };
+
+    items.forEach((item) => {
+      const t = item.itemType || 'OTHER';
+      if (counts[t] !== undefined) {
+        counts[t]++;
+      }
+    });
+
+    return counts;
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const matchesCategory = activeCategory === 'ALL' || item.itemType === activeCategory;
+      const query = searchQuery.toLowerCase();
+      const studentName = item.student?.fullName || item.fullName || '';
+      const title = item.title || item.degree || item.role || item.semester || '';
+      const issuer = item.issuingOrganization || item.institution || item.companyName || '';
+      const matchesSearch =
+        !searchQuery ||
+        studentName.toLowerCase().includes(query) ||
+        title.toLowerCase().includes(query) ||
+        issuer.toLowerCase().includes(query);
+      return matchesCategory && matchesSearch;
+    });
+  }, [items, activeCategory, searchQuery]);
+
+  const getItemIcon = (type: string) => {
+    switch (type) {
+      case 'CERTIFICATION':
+        return <Award className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
+      case 'ACADEMIC_REPORT':
+        return <GraduationCap className="w-5 h-5 text-brand-600 dark:text-brand-400" />;
+      case 'ACHIEVEMENT':
+        return <Trophy className="w-5 h-5 text-amber-600 dark:text-amber-400" />;
+      case 'SKILL':
+        return <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
+      case 'PROJECT':
+        return <FolderGit2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+      case 'INTERNSHIP':
+        return <Briefcase className="w-5 h-5 text-teal-600 dark:text-teal-400" />;
+      case 'RESUME':
+        return <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />;
+      default:
+        return <FileCheck2 className="w-5 h-5 text-slate-600 dark:text-slate-400" />;
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+      <div className="flex items-center justify-center py-24">
+        <div className="w-9 h-9 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Student Portfolio Verification</h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Authorized academic audit interface. Review submitted projects, certificates, skills, and experiences before granting verified badges.
-            </p>
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-white dark:bg-[#121824] border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 mb-2">
+            <CheckSquare className="w-3.5 h-3.5" />
+            Institutional Audit Portal
           </div>
-          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-            {totalPending} Pending Review
-          </span>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Student Portfolio Verification</h1>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+            Official review interface. Inspect student submitted mark sheets, external certifications, research awards, and verified skill claims before granting official digital badges.
+          </p>
+        </div>
+        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0">
+          {items.length} Total Pending Review
+        </span>
+      </div>
+
+      {/* Filter and Category Tabs */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#121824] p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          {[
+            { key: 'ALL', label: `All (${categories.ALL})` },
+            { key: 'CERTIFICATION', label: `Certificates (${categories.CERTIFICATION})` },
+            { key: 'ACADEMIC_REPORT', label: `Marksheets (${categories.ACADEMIC_REPORT})` },
+            { key: 'ACHIEVEMENT', label: `Awards (${categories.ACHIEVEMENT})` },
+            { key: 'SKILL', label: `Skills (${categories.SKILL})` },
+            { key: 'PROJECT', label: `Projects (${categories.PROJECT})` },
+            { key: 'INTERNSHIP', label: `Internships (${categories.INTERNSHIP})` },
+            { key: 'RESUME', label: `Resumes (${categories.RESUME})` },
+          ].map((cat) => (
+            <button
+              key={cat.key}
+              onClick={() => setActiveCategory(cat.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                activeCategory === cat.key
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search student, title, issuer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+          />
         </div>
       </div>
 
-      {totalPending === 0 ? (
+      {/* Items List */}
+      {filteredItems.length === 0 ? (
         <EmptyState
           icon={FileCheck2}
-          title="No pending portfolio verifications"
-          description="All student projects, certifications, skills, and academic experiences are currently up to date."
+          title={searchQuery ? 'No matching audit items found' : 'All items verified'}
+          description={
+            searchQuery
+              ? `No pending submissions match "${searchQuery}".`
+              : 'No pending student certificates or documents currently require institutional audit.'
+          }
         />
       ) : (
-        <div className="space-y-8">
-          {/* Pending Resumes */}
-          {data.resumes && data.resumes.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-indigo-600" />
-                <h2 className="text-base font-bold text-slate-900">Resumes / CVs ({data.resumes.length})</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.resumes.map((resItem: any) => (
-                  <div
-                    key={resItem.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">{resItem.fullName}</h3>
-                        <Badge variant="warning" size="sm">
-                          Pending Review
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {resItem.degree} - {resItem.department}
-                      </p>
-                      <p className="text-xs text-slate-600 mt-1 truncate">Document: {resItem.resumeUrl}</p>
-                    </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredItems.map((item) => {
+            const studentName = item.student?.fullName || item.fullName || 'Student';
+            const studentDept = item.student?.department || item.department || 'BAMS';
+            const studentDegree = item.student?.degree || item.degree || '';
+            const rawDocUrl = item.fileUrl || item.certificateDocUrl || item.documentUrl || item.resumeUrl || item.certificateUrl;
 
-                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+            return (
+              <div
+                key={item.id}
+                className="bg-white dark:bg-[#121824] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                        {getItemIcon(item.itemType)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            {item.itemType?.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-snug">
+                          {item.title || item.degree || item.role || item.semester || 'Submitted Credential'}
+                        </h3>
+                        <p className="text-xs text-brand-600 dark:text-brand-400 font-semibold mt-0.5">
+                          Student: {studentName} ({studentDegree} - {studentDept})
+                        </p>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 shrink-0">
+                      Pending
+                    </span>
+                  </div>
+
+                  {item.description && (
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mt-1">
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className="space-y-1 mt-3 text-xs text-slate-600 dark:text-slate-400">
+                    {item.issuingOrganization && (
+                      <p>Issuer / Authority: <strong>{item.issuingOrganization}</strong></p>
+                    )}
+                    {item.institution && item.institution !== studentDept && (
+                      <p>Institution: <strong>{item.institution}</strong></p>
+                    )}
+                    {item.academicYear && (
+                      <p>Academic Year: <strong>{item.academicYear}</strong> {item.yearOfStudy ? `(${item.yearOfStudy})` : ''}</p>
+                    )}
+                    {item.cgpa !== undefined && item.cgpa !== null && (
+                      <p>Claimed CGPA: <strong>{item.cgpa}</strong> {item.percentage ? `(${item.percentage}%)` : ''}</p>
+                    )}
+                    {item.level && (
+                      <p>Competition Level: <strong>{item.level}</strong> {item.position ? `• Rank: ${item.position}` : ''}</p>
+                    )}
+                    {item.skillsCovered && (
+                      <p className="text-[11px] text-slate-500">Skills: {item.skillsCovered}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    {rawDocUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDocPreview(rawDocUrl, `${studentName} - Document Evidence`)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 hover:bg-brand-100 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Inspect Document
+                      </button>
+                    ) : item.credentialUrl ? (
                       <a
-                        href={resItem.resumeUrl}
+                        href={item.credentialUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[11px] text-brand-600 hover:underline flex items-center gap-1 font-medium"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
                       >
-                        <ExternalLink className="w-3 h-3" /> View Resume
+                        <ExternalLink className="w-3.5 h-3.5" /> External URL
                       </a>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAction(resItem, 'RESUME', 'VERIFIED')}
-                          className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                        >
-                          Verify
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAction(resItem, 'RESUME', 'REJECTED')}
-                          className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 italic">No document file</span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Pending Education */}
-          {data.educations && data.educations.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-blue-600" />
-                <h2 className="text-base font-bold text-slate-900">Education ({data.educations.length})</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.educations.map((edu: any) => (
-                  <div
-                    key={edu.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">
-                          {edu.degree} in {edu.fieldOfStudy}
-                        </h3>
-                        <Badge variant="warning" size="sm">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        By: <strong>{edu.student?.fullName}</strong> ({edu.student?.department})
-                      </p>
-                      <p className="text-xs text-slate-600 mt-1">{edu.institution}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {edu.startYear} - {edu.endYear || 'Present'} {edu.grade ? `• Grade: ${edu.grade}` : ''}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(edu, 'EDUCATION', 'VERIFIED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                      >
-                        Verify
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(edu, 'EDUCATION', 'REJECTED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                      >
-                        Reject
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAction(item, item.itemType, 'VERIFIED')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Verify
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAction(item, item.itemType, 'REJECTED')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Reject
+                    </button>
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Pending Skills */}
-          {data.skills && data.skills.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-600" />
-                <h2 className="text-base font-bold text-slate-900">Skills ({data.skills.length})</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.skills.map((sp: any) => (
-                  <div
-                    key={sp.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">{sp.skill?.name}</h3>
-                        <Badge variant="warning" size="sm">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        By: <strong>{sp.student?.fullName}</strong> ({sp.student?.department})
-                      </p>
-                      <p className="text-xs text-emerald-700 mt-1 font-semibold">
-                        Proficiency: {sp.proficiencyLevel}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(sp, 'SKILL', 'VERIFIED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                      >
-                        Verify
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(sp, 'SKILL', 'REJECTED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pending Projects */}
-          {data.projects && data.projects.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <FolderGit2 className="w-5 h-5 text-brand-600" />
-                <h2 className="text-base font-bold text-slate-900">Projects ({data.projects.length})</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.projects.map((proj: any) => (
-                  <div
-                    key={proj.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">{proj.title}</h3>
-                        <Badge variant="warning" size="sm">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        By: <strong>{proj.student?.fullName}</strong> ({proj.student?.department})
-                      </p>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">{proj.description}</p>
-                      {proj.technologies && (
-                        <p className="text-[11px] text-brand-700 font-medium mt-1.5">
-                          Stack: {proj.technologies}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {proj.projectUrl && (
-                          <a
-                            href={proj.projectUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[11px] text-brand-600 hover:underline flex items-center gap-1"
-                          >
-                            <ExternalLink className="w-3 h-3" /> Demo
-                          </a>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAction(proj, 'PROJECT', 'VERIFIED')}
-                          className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                        >
-                          Verify
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAction(proj, 'PROJECT', 'REJECTED')}
-                          className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pending Certifications */}
-          {data.certificates && data.certificates.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-purple-600" />
-                <h2 className="text-base font-bold text-slate-900">
-                  Certifications ({data.certificates.length})
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.certificates.map((cert: any) => (
-                  <div
-                    key={cert.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">{cert.title}</h3>
-                        <Badge variant="warning" size="sm">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        By: <strong>{cert.student?.fullName}</strong> ({cert.student?.department})
-                      </p>
-                      <p className="text-xs text-slate-600 mt-1">Provider: {cert.issuingOrganization}</p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                      {cert.credentialUrl ? (
-                        <a
-                          href={cert.credentialUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[11px] text-brand-600 hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="w-3 h-3" /> View Credential
-                        </a>
-                      ) : (
-                        <span />
-                      )}
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAction(cert, 'CERTIFICATION', 'VERIFIED')}
-                          className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                        >
-                          Verify
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAction(cert, 'CERTIFICATION', 'REJECTED')}
-                          className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pending Internships */}
-          {data.internships && data.internships.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-emerald-600" />
-                <h2 className="text-base font-bold text-slate-900">
-                  Internships ({data.internships.length})
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.internships.map((exp: any) => (
-                  <div
-                    key={exp.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">{exp.role}</h3>
-                        <Badge variant="warning" size="sm">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        By: <strong>{exp.student?.fullName}</strong> ({exp.student?.department})
-                      </p>
-                      <p className="text-xs text-slate-600 mt-1 font-medium">{exp.companyName}</p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(exp, 'INTERNSHIP', 'VERIFIED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                      >
-                        Verify
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(exp, 'INTERNSHIP', 'REJECTED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pending Achievements */}
-          {data.achievements && data.achievements.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-amber-600" />
-                <h2 className="text-base font-bold text-slate-900">
-                  Achievements ({data.achievements.length})
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.achievements.map((ach: any) => (
-                  <div
-                    key={ach.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">{ach.title}</h3>
-                        <Badge variant="warning" size="sm">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        By: <strong>{ach.student?.fullName}</strong> ({ach.student?.department})
-                      </p>
-                      <p className="text-xs text-amber-700 mt-1 font-semibold">{ach.category}</p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(ach, 'ACHIEVEMENT', 'VERIFIED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                      >
-                        Verify
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(ach, 'ACHIEVEMENT', 'REJECTED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pending Trainings */}
-          {data.trainings && data.trainings.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-teal-600" />
-                <h2 className="text-base font-bold text-slate-900">
-                  Workshops & Training ({data.trainings.length})
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data.trainings.map((tr: any) => (
-                  <div
-                    key={tr.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900">{tr.title}</h3>
-                        <Badge variant="warning" size="sm">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        By: <strong>{tr.student?.fullName}</strong> ({tr.student?.department})
-                      </p>
-                      <p className="text-xs text-teal-700 mt-1 font-semibold">{tr.provider}</p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(tr, 'TRAINING', 'VERIFIED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                      >
-                        Verify
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(tr, 'TRAINING', 'REJECTED')}
-                        className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       )}
 
-      {/* Verification Modal */}
+      {/* Verification Decision Modal */}
       <Modal
         isOpen={verifyModalOpen}
         onClose={() => setVerifyModalOpen(false)}
-        title={`Audit Decision: ${targetStatus}`}
+        title={`Institutional Verification Decision: ${targetStatus}`}
       >
         <form onSubmit={handleSubmitVerification} className="space-y-4">
-          <p className="text-xs text-slate-600">
-            You are marking this portfolio item for student{' '}
-            <strong className="text-slate-900">
-              {selectedItem?.student?.fullName || selectedItem?.fullName}
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            You are setting the status for student{' '}
+            <strong className="text-slate-900 dark:text-white">
+              {selectedItem?.student?.fullName || selectedItem?.fullName || 'Student'}
             </strong>{' '}
-            as{' '}
-            <strong className={targetStatus === 'VERIFIED' ? 'text-emerald-700' : 'text-rose-700'}>
+            ({selectedItem?.itemType?.replace(/_/g, ' ')}) as{' '}
+            <strong className={targetStatus === 'VERIFIED' ? 'text-emerald-600' : 'text-rose-600'}>
               {targetStatus}
             </strong>
             .
           </p>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Audit Remarks / Reason
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Verification Remarks / Auditor Notes (Visible to Student)
             </label>
             <textarea
               rows={3}
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200"
+              placeholder="Provide verification justification, roll number match, or reason if rejected..."
+              className="w-full p-3 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setVerifyModalOpen(false)}
-              className="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl"
+              className="px-4 py-2 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
             >
               Cancel
             </button>
@@ -619,10 +409,54 @@ export const InstitutionPortfolioVerification: React.FC = () => {
                   : 'bg-rose-600 hover:bg-rose-700'
               }`}
             >
-              Confirm {targetStatus}
+              {submitting ? 'Submitting...' : `Confirm ${targetStatus}`}
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Document Preview Modal */}
+      <Modal
+        isOpen={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        title={previewDocTitle || 'Submitted Document Preview'}
+      >
+        <div className="space-y-4">
+          {previewDocUrl && (
+            <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 min-h-[400px] flex items-center justify-center">
+              {previewDocUrl.toLowerCase().includes('.pdf') ? (
+                <iframe
+                  src={previewDocUrl}
+                  title="Document Preview"
+                  className="w-full h-[550px] border-0 rounded-xl"
+                />
+              ) : (
+                <img
+                  src={previewDocUrl}
+                  alt="Document Proof"
+                  className="max-h-[550px] max-w-full object-contain mx-auto rounded-xl p-2"
+                />
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-2">
+            <a
+              href={previewDocUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+            </a>
+            <button
+              type="button"
+              onClick={() => setPreviewModalOpen(false)}
+              className="px-4 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

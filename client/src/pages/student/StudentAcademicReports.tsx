@@ -4,7 +4,7 @@ import { Modal } from '../../components/common/Modal';
 import { EmptyState } from '../../components/common/EmptyState';
 import { DocumentUploadZone } from '../../components/common/DocumentUploadZone';
 import {
-  Award,
+  GraduationCap,
   Plus,
   Trash2,
   Edit3,
@@ -16,133 +16,128 @@ import {
   Calendar,
   Search,
   Building2,
-  BookOpen,
-  Tag,
-  Eye,
+  TrendingUp,
+  Award,
   Info,
 } from 'lucide-react';
 
-interface Certification {
+interface AcademicReport {
   id: string;
-  title: string;
-  certificateType?: string | null;
-  issuingOrganization: string;
-  courseName?: string | null;
-  category?: string | null;
-  issueDate?: string | null;
-  expiryDate?: string | null;
-  credentialId?: string | null;
-  credentialUrl?: string | null;
-  certificateDocUrl?: string | null;
-  skillsCovered?: string | null;
+  reportType: string;
+  academicYear: string;
+  semester: string;
+  institution?: string | null;
+  degree?: string | null;
+  department?: string | null;
+  yearOfStudy?: string | null;
+  cgpa?: number | null;
+  percentage?: number | null;
   description?: string | null;
+  documentUrl?: string | null;
   verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
   remarks?: string | null;
-  verifiedAt?: string | null;
   createdAt: string;
 }
 
-const CERTIFICATE_TYPES = [
-  'Industry Certification',
-  'Academic Assessment',
-  'Online Course Certificate',
-  'Professional Workshop',
-  'Clinical Training / Internship',
-  'Specialization & Fellowship',
-  'Faculty Development Program',
-  'Other Credential',
+const REPORT_TYPES = [
+  { value: 'SEMESTER_MARKSHEET', label: 'Semester Mark Sheet' },
+  { value: 'TRANSCRIPT', label: 'Official Transcript' },
+  { value: 'GRADE_REPORT', label: 'Term / Grade Report' },
+  { value: 'ANNUAL_REPORT', label: 'Annual Academic Report' },
+  { value: 'PROVISIONAL_CERTIFICATE', label: 'Provisional Degree Certificate' },
 ];
 
-const CATEGORIES = [
-  'Clinical Ayurveda & Diagnostics',
-  'Pharmacognosy & Dravyaguna',
-  'Rasashastra & Bhasma Preparations',
-  'Panchakarma & Clinical Detoxification',
-  'Ayurveda Dietetics & Nutrition',
-  'Herbal Pharmacology & Extraction',
-  'Ayurvedic Formulation & QC',
-  'Medical Research & Publication',
-  'Healthcare IT & Digital Records',
-  'General Healthcare & Management',
+const SEMESTERS = [
+  'Semester 1',
+  'Semester 2',
+  'Semester 3',
+  'Semester 4',
+  'Semester 5',
+  'Semester 6',
+  'Semester 7',
+  'Semester 8',
+  'Annual (1st Year)',
+  'Annual (2nd Year)',
+  'Annual (3rd Year)',
+  'Annual (4th Year)',
 ];
 
-export const StudentCertifications: React.FC = () => {
-  const [certifications, setCertifications] = useState<Certification[]>([]);
+const YEARS_OF_STUDY = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year / Internship'];
+
+export const StudentAcademicReports: React.FC = () => {
+  const [reports, setReports] = useState<AcademicReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
   const [previewDocTitle, setPreviewDocTitle] = useState<string>('');
-  const [editingCert, setEditingCert] = useState<Certification | null>(null);
+  const [editingReport, setEditingReport] = useState<AcademicReport | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [form, setForm] = useState({
-    title: '',
-    certificateType: 'Industry Certification',
-    issuingOrganization: '',
-    courseName: '',
-    category: 'Clinical Ayurveda & Diagnostics',
-    issueDate: '',
-    expiryDate: '',
-    credentialId: '',
-    credentialUrl: '',
-    certificateDocUrl: '',
-    skillsCovered: '',
+    reportType: 'SEMESTER_MARKSHEET',
+    academicYear: '2024-2025',
+    semester: 'Semester 4',
+    institution: '',
+    degree: '',
+    department: '',
+    yearOfStudy: '2nd Year',
+    cgpa: '',
+    percentage: '',
     description: '',
+    documentUrl: '',
   });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCertifications = () => {
+  const fetchReports = () => {
     setLoading(true);
     api
-      .get('/student/certifications')
-      .then((res) => setCertifications(res.data || []))
-      .catch((err) => console.error('Failed to load certifications', err))
+      .get('/student/academic-reports')
+      .then((res) => setReports(res.data || []))
+      .catch((err) => console.error('Failed to load academic reports', err))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetchCertifications();
+    fetchReports();
   }, []);
 
   const handleOpenAdd = () => {
-    setEditingCert(null);
+    setEditingReport(null);
     setForm({
-      title: '',
-      certificateType: 'Industry Certification',
-      issuingOrganization: '',
-      courseName: '',
-      category: 'Clinical Ayurveda & Diagnostics',
-      issueDate: '',
-      expiryDate: '',
-      credentialId: '',
-      credentialUrl: '',
-      certificateDocUrl: '',
-      skillsCovered: '',
+      reportType: 'SEMESTER_MARKSHEET',
+      academicYear: '2024-2025',
+      semester: 'Semester 4',
+      institution: '',
+      degree: '',
+      department: '',
+      yearOfStudy: '2nd Year',
+      cgpa: '',
+      percentage: '',
       description: '',
+      documentUrl: '',
     });
     setError(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (cert: Certification) => {
-    setEditingCert(cert);
+  const handleOpenEdit = (report: AcademicReport) => {
+    setEditingReport(report);
     setForm({
-      title: cert.title,
-      certificateType: cert.certificateType || 'Industry Certification',
-      issuingOrganization: cert.issuingOrganization,
-      courseName: cert.courseName || '',
-      category: cert.category || 'Clinical Ayurveda & Diagnostics',
-      issueDate: cert.issueDate || '',
-      expiryDate: cert.expiryDate || '',
-      credentialId: cert.credentialId || '',
-      credentialUrl: cert.credentialUrl || '',
-      certificateDocUrl: cert.certificateDocUrl || '',
-      skillsCovered: cert.skillsCovered || '',
-      description: cert.description || '',
+      reportType: report.reportType || 'SEMESTER_MARKSHEET',
+      academicYear: report.academicYear,
+      semester: report.semester,
+      institution: report.institution || '',
+      degree: report.degree || '',
+      department: report.department || '',
+      yearOfStudy: report.yearOfStudy || '2nd Year',
+      cgpa: report.cgpa !== null && report.cgpa !== undefined ? String(report.cgpa) : '',
+      percentage: report.percentage !== null && report.percentage !== undefined ? String(report.percentage) : '',
+      description: report.description || '',
+      documentUrl: report.documentUrl || '',
     });
     setError(null);
     setIsModalOpen(true);
@@ -150,12 +145,12 @@ export const StudentCertifications: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.issuingOrganization.trim()) {
-      setError('Certificate title and issuing organization are required.');
+    if (!form.academicYear.trim() || !form.semester.trim()) {
+      setError('Academic year and semester are required.');
       return;
     }
-    if (!form.certificateDocUrl && !form.credentialUrl) {
-      setError('Please upload a certificate document (PDF/Image) or provide a valid verification URL.');
+    if (!form.documentUrl) {
+      setError('Please upload the official mark sheet / transcript document.');
       return;
     }
 
@@ -163,27 +158,27 @@ export const StudentCertifications: React.FC = () => {
     setError(null);
 
     try {
-      if (editingCert) {
-        await api.put(`/student/certifications/${editingCert.id}`, form);
+      if (editingReport) {
+        await api.put(`/student/academic-reports/${editingReport.id}`, form);
       } else {
-        await api.post('/student/certifications', form);
+        await api.post('/student/academic-reports', form);
       }
       setIsModalOpen(false);
-      fetchCertifications();
+      fetchReports();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save certification.');
+      setError(err.response?.data?.message || 'Failed to save academic report.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to remove this certification? This action cannot be undone.')) return;
+    if (!window.confirm('Are you sure you want to remove this academic report?')) return;
     try {
-      await api.delete(`/student/certifications/${id}`);
-      fetchCertifications();
+      await api.delete(`/student/academic-reports/${id}`);
+      fetchReports();
     } catch (err) {
-      console.error('Failed to delete certification', err);
+      console.error('Failed to delete academic report', err);
     }
   };
 
@@ -193,29 +188,33 @@ export const StudentCertifications: React.FC = () => {
     setIsPreviewModalOpen(true);
   };
 
-  const filteredCertifications = useMemo(() => {
-    return certifications.filter((cert) => {
-      const matchesTab = activeTab === 'ALL' || cert.verificationStatus === activeTab;
+  const filteredReports = useMemo(() => {
+    return reports.filter((r) => {
+      const matchesTab = activeTab === 'ALL' || r.verificationStatus === activeTab;
       const query = searchQuery.toLowerCase();
       const matchesSearch =
         !searchQuery ||
-        cert.title.toLowerCase().includes(query) ||
-        cert.issuingOrganization.toLowerCase().includes(query) ||
-        (cert.courseName && cert.courseName.toLowerCase().includes(query)) ||
-        (cert.skillsCovered && cert.skillsCovered.toLowerCase().includes(query)) ||
-        (cert.category && cert.category.toLowerCase().includes(query));
+        r.semester.toLowerCase().includes(query) ||
+        r.academicYear.toLowerCase().includes(query) ||
+        r.reportType.toLowerCase().includes(query) ||
+        (r.institution && r.institution.toLowerCase().includes(query));
       return matchesTab && matchesSearch;
     });
-  }, [certifications, activeTab, searchQuery]);
+  }, [reports, activeTab, searchQuery]);
 
   const stats = useMemo(() => {
+    const verifiedReports = reports.filter((r) => r.verificationStatus === 'VERIFIED');
+    const validCgpas = reports.map((r) => r.cgpa).filter((c): c is number => c !== null && c !== undefined && c > 0);
+    const avgCgpa = validCgpas.length > 0 ? (validCgpas.reduce((a, b) => a + b, 0) / validCgpas.length).toFixed(2) : 'N/A';
+
     return {
-      total: certifications.length,
-      verified: certifications.filter((c) => c.verificationStatus === 'VERIFIED').length,
-      pending: certifications.filter((c) => c.verificationStatus === 'PENDING').length,
-      rejected: certifications.filter((c) => c.verificationStatus === 'REJECTED').length,
+      total: reports.length,
+      verified: verifiedReports.length,
+      pending: reports.filter((r) => r.verificationStatus === 'PENDING').length,
+      rejected: reports.filter((r) => r.verificationStatus === 'REJECTED').length,
+      avgCgpa,
     };
-  }, [certifications]);
+  }, [reports]);
 
   const getStatusBadge = (status: string) => {
     if (status === 'VERIFIED') {
@@ -244,16 +243,16 @@ export const StudentCertifications: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
+      {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-white dark:bg-[#121824] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800 mb-2">
-            <Award className="w-3.5 h-3.5" />
-            Verified Digital Credentials
+            <GraduationCap className="w-3.5 h-3.5" />
+            Verified Academic Records
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Student Certifications</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Academic Reports & Transcripts</h1>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
-            Upload and manage your industry certifications, training proofs, and professional licenses. Verified credentials are reviewed by your institution and recognized by recruiters.
+            Upload semester mark sheets, official transcripts, and grade reports. Institutional verification validates your academic credentials for recruiters and research fellowships.
           </p>
         </div>
         <button
@@ -261,7 +260,7 @@ export const StudentCertifications: React.FC = () => {
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl shadow-sm transition-all shrink-0 hover:shadow-brand-500/25"
         >
           <Plus className="w-4 h-4" />
-          Apply / Add Certificate
+          Upload Academic Report
         </button>
       </div>
 
@@ -276,8 +275,8 @@ export const StudentCertifications: React.FC = () => {
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Uploaded</span>
-            <Award className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Reports</span>
+            <GraduationCap className="w-4 h-4 text-brand-600 dark:text-brand-400" />
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1.5">{stats.total}</p>
         </div>
@@ -291,10 +290,18 @@ export const StudentCertifications: React.FC = () => {
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Verified Credentials</span>
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Verified Marksheets</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1.5">{stats.verified}</p>
+        </div>
+
+        <div className="p-4 rounded-xl border bg-white dark:bg-[#121824] border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Average CGPA / SGPA</span>
+            <TrendingUp className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+          </div>
+          <p className="text-2xl font-bold text-brand-600 dark:text-brand-400 mt-1.5">{stats.avgCgpa}</p>
         </div>
 
         <div
@@ -310,21 +317,6 @@ export const StudentCertifications: React.FC = () => {
             <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           </div>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1.5">{stats.pending}</p>
-        </div>
-
-        <div
-          onClick={() => setActiveTab('REJECTED')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
-            activeTab === 'REJECTED'
-              ? 'bg-rose-50/70 border-rose-300 dark:bg-rose-950/40 dark:border-rose-700'
-              : 'bg-white dark:bg-[#121824] border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">Needs Attention</span>
-            <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-          </div>
-          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1.5">{stats.rejected}</p>
         </div>
       </div>
 
@@ -342,7 +334,7 @@ export const StudentCertifications: React.FC = () => {
               }`}
             >
               {tab === 'ALL'
-                ? `All (${stats.total})`
+                ? `All Reports (${stats.total})`
                 : tab === 'PENDING'
                 ? `Pending (${stats.pending})`
                 : tab === 'VERIFIED'
@@ -356,7 +348,7 @@ export const StudentCertifications: React.FC = () => {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search certificates, skills, issuers..."
+            placeholder="Search semester, academic year..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
@@ -364,127 +356,107 @@ export const StudentCertifications: React.FC = () => {
         </div>
       </div>
 
-      {/* Content Section */}
+      {/* Reports List */}
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
         </div>
-      ) : filteredCertifications.length === 0 ? (
+      ) : filteredReports.length === 0 ? (
         <EmptyState
-          icon={Award}
-          title={searchQuery ? 'No matching certificates found' : 'No certificates in this view'}
+          icon={GraduationCap}
+          title={searchQuery ? 'No matching reports found' : 'No academic reports uploaded yet'}
           description={
             searchQuery
-              ? `No certificate records match "${searchQuery}". Try a different keyword.`
-              : activeTab === 'VERIFIED'
-              ? 'No certificates have been verified yet. Uploaded documents will be reviewed by your institution.'
-              : 'Add your first certificate proof to enhance your digital portfolio and placement readiness.'
+              ? `No academic report matches "${searchQuery}".`
+              : 'Upload your semester mark sheets and grade transcripts to verify your academic performance.'
           }
-          actionText={!searchQuery ? 'Apply / Add Certificate' : undefined}
+          actionText={!searchQuery ? 'Upload Academic Report' : undefined}
           onAction={!searchQuery ? handleOpenAdd : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredCertifications.map((cert) => {
-            const rawDocUrl = cert.certificateDocUrl;
+          {filteredReports.map((report) => {
+            const rawDocUrl = report.documentUrl;
             const fullDocUrl = rawDocUrl
               ? rawDocUrl.startsWith('http')
                 ? rawDocUrl
                 : `http://localhost:5000${rawDocUrl}`
               : null;
 
+            const typeLabel =
+              REPORT_TYPES.find((t) => t.value === report.reportType)?.label ||
+              report.reportType.replace(/_/g, ' ');
+
             return (
               <div
-                key={cert.id}
+                key={report.id}
                 className="bg-white dark:bg-[#121824] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-xl bg-brand-50 dark:bg-brand-950/60 border border-brand-100 dark:border-brand-800 flex items-center justify-center text-brand-600 dark:text-brand-400 shrink-0 mt-0.5">
-                        <Award className="w-5 h-5" />
+                        <GraduationCap className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                          {cert.category && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                              {cert.category}
-                            </span>
-                          )}
-                          {cert.certificateType && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300">
-                              {cert.certificateType}
-                            </span>
-                          )}
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300">
+                            {report.semester}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            {typeLabel}
+                          </span>
                         </div>
-                        <h3 className="font-semibold text-slate-900 dark:text-white text-base leading-snug">
-                          {cert.title}
+                        <h3 className="font-bold text-slate-900 dark:text-white text-base leading-snug">
+                          {report.semester} Mark Sheet ({report.academicYear})
                         </h3>
                         <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                           <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="font-medium">{cert.issuingOrganization}</span>
+                          <span>{report.institution || 'Ayurveda Medical College'}</span>
                         </div>
                       </div>
                     </div>
-                    <div>{getStatusBadge(cert.verificationStatus)}</div>
+                    <div>{getStatusBadge(report.verificationStatus)}</div>
                   </div>
 
-                  {cert.courseName && (
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 mt-2 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800/80">
-                      <BookOpen className="w-3.5 h-3.5 text-brand-500 shrink-0" />
-                      <span><strong>Program:</strong> {cert.courseName}</span>
+                  {/* Academic Metrics Row */}
+                  <div className="grid grid-cols-2 gap-2 my-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800/80">
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">CGPA / SGPA:</span>
+                      <p className="text-base font-bold text-brand-600 dark:text-brand-400">
+                        {report.cgpa !== null && report.cgpa !== undefined ? report.cgpa.toFixed(2) : 'N/A'}
+                      </p>
                     </div>
-                  )}
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Percentage:</span>
+                      <p className="text-base font-bold text-slate-900 dark:text-white">
+                        {report.percentage !== null && report.percentage !== undefined ? `${report.percentage}%` : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
 
-                  {cert.description && (
+                  {report.description && (
                     <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">
-                      {cert.description}
+                      {report.description}
                     </p>
                   )}
 
                   <div className="space-y-1.5 mt-3 text-xs text-slate-600 dark:text-slate-400">
-                    {cert.issueDate && (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>Issued: <strong>{cert.issueDate}</strong> {cert.expiryDate ? `• Expires: ${cert.expiryDate}` : '• No Expiry'}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>Academic Year: <strong>{report.academicYear}</strong> {report.yearOfStudy ? `• ${report.yearOfStudy}` : ''}</span>
+                    </div>
 
-                    {cert.credentialId && (
-                      <div className="flex items-center gap-2">
-                        <Tag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>Credential ID: <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 font-mono text-[11px]">{cert.credentialId}</code></span>
-                      </div>
-                    )}
-
-                    {cert.skillsCovered && (
-                      <div className="pt-2">
-                        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
-                          Associated Skills
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {cert.skillsCovered.split(',').map((skill, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md text-[11px] font-medium"
-                            >
-                              {skill.trim()}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {cert.remarks && (
+                    {report.remarks && (
                       <div className={`p-2.5 rounded-lg border text-xs mt-3 ${
-                        cert.verificationStatus === 'VERIFIED'
+                        report.verificationStatus === 'VERIFIED'
                           ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
                           : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'
                       }`}>
                         <div className="flex items-start gap-1.5">
                           <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                           <div>
-                            <strong>Verifier Remarks:</strong> {cert.remarks}
+                            <strong>Verifier Remarks:</strong> {report.remarks}
                           </div>
                         </div>
                       </div>
@@ -494,41 +466,32 @@ export const StudentCertifications: React.FC = () => {
 
                 <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    {fullDocUrl && (
+                    {fullDocUrl ? (
                       <button
                         type="button"
-                        onClick={() => handleOpenPreview(fullDocUrl, cert.title)}
+                        onClick={() => handleOpenPreview(fullDocUrl, `${report.semester} Mark Sheet`)}
                         className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/60 transition-colors"
                       >
                         <FileText className="w-3.5 h-3.5" />
-                        View Document
+                        View Mark Sheet
                       </button>
-                    )}
-                    {cert.credentialUrl && (
-                      <a
-                        href={cert.credentialUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        Verify URL
-                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No document attached</span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => handleOpenEdit(cert)}
+                      onClick={() => handleOpenEdit(report)}
                       className="p-1.5 text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                      title="Edit Certification"
+                      title="Edit Academic Report"
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(cert.id)}
+                      onClick={() => handleDelete(report.id)}
                       className="p-1.5 text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
-                      title="Delete Certification"
+                      title="Delete Academic Report"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -540,11 +503,11 @@ export const StudentCertifications: React.FC = () => {
         </div>
       )}
 
-      {/* Submission Modal */}
+      {/* Add / Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingCert ? 'Edit Certificate Details' : 'Apply / Add Certificate for Verification'}
+        title={editingReport ? 'Edit Academic Report' : 'Upload Academic Report / Mark Sheet'}
       >
         <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
           {error && (
@@ -553,33 +516,19 @@ export const StudentCertifications: React.FC = () => {
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Certificate Title / Credential Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Advanced Panchakarma Practice & Clinical Detoxification"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            />
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Certificate Type
+                Report Type <span className="text-red-500">*</span>
               </label>
               <select
-                value={form.certificateType}
-                onChange={(e) => setForm({ ...form, certificateType: e.target.value })}
+                value={form.reportType}
+                onChange={(e) => setForm({ ...form, reportType: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
               >
-                {CERTIFICATE_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                {REPORT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
@@ -587,101 +536,84 @@ export const StudentCertifications: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Issuing Organization / Authority <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Dhanvantari Institute of Ayurveda, AYUSH Council"
-                value={form.issuingOrganization}
-                onChange={(e) => setForm({ ...form, issuingOrganization: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Domain / Category
+                Semester / Academic Term <span className="text-red-500">*</span>
               </label>
               <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                value={form.semester}
+                onChange={(e) => setForm({ ...form, semester: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
               >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {SEMESTERS.map((sem) => (
+                  <option key={sem} value={sem}>
+                    {sem}
                   </option>
                 ))}
               </select>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Course / Workshop Name (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Masterclass on Detox Therapy & Snehana"
-                value={form.courseName}
-                onChange={(e) => setForm({ ...form, courseName: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Issue Date (Month & Year) <span className="text-red-500">*</span>
+                Academic Year <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. August 2025 or 2025-08-15"
-                value={form.issueDate}
-                onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
+                placeholder="e.g. 2024-2025"
+                value={form.academicYear}
+                onChange={(e) => setForm({ ...form, academicYear: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
               />
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Expiry Date (Optional)
+                Year of Study
               </label>
-              <input
-                type="text"
-                placeholder="e.g. August 2028 or Lifetime"
-                value={form.expiryDate}
-                onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+              <select
+                value={form.yearOfStudy}
+                onChange={(e) => setForm({ ...form, yearOfStudy: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
+              >
+                {YEARS_OF_STUDY.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Credential ID / License Number (Optional)
+                SGPA / CGPA (e.g. 8.6)
               </label>
               <input
-                type="text"
-                placeholder="e.g. CERT-AYUSH-2025-0042"
-                value={form.credentialId}
-                onChange={(e) => setForm({ ...form, credentialId: e.target.value })}
+                type="number"
+                step="0.01"
+                min="0"
+                max="10"
+                placeholder="e.g. 8.6"
+                value={form.cgpa}
+                onChange={(e) => setForm({ ...form, cgpa: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
               />
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Online Verification Link (Optional)
+                Percentage (% equivalent)
               </label>
               <input
-                type="url"
-                placeholder="https://verify.issuer.org/cert/..."
-                value={form.credentialUrl}
-                onChange={(e) => setForm({ ...form, credentialUrl: e.target.value })}
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                placeholder="e.g. 86.0"
+                value={form.percentage}
+                onChange={(e) => setForm({ ...form, percentage: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
               />
             </div>
@@ -689,39 +621,26 @@ export const StudentCertifications: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Associated Skills (Comma Separated)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Panchakarma Therapy, Patient Assessment, Shirodhara, Herbal Formulations"
-              value={form.skillsCovered}
-              onChange={(e) => setForm({ ...form, skillsCovered: e.target.value })}
-              className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Description / Notes (Optional)
+              Remarks / Highlights (Optional)
             </label>
             <textarea
               rows={2}
-              placeholder="Key concepts learned, practical clinical hours completed, or grade achieved..."
+              placeholder="e.g. Distinction in Dravyaguna & Panchakarma clinical evaluation"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full px-3.5 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-brand-500 focus:outline-none resize-none"
             />
           </div>
 
-          {/* Document Upload Area */}
+          {/* Document Upload */}
           <div className="pt-1">
             <DocumentUploadZone
-              fileUrl={form.certificateDocUrl}
-              onUploadSuccess={(url) => setForm({ ...form, certificateDocUrl: url })}
-              onRemove={() => setForm({ ...form, certificateDocUrl: '' })}
-              label="Upload Certificate Document (PDF or Image)"
-              required={!form.credentialUrl}
-              helperText="Upload official scan or PDF (Max 5MB). Institutional verification will review this document."
+              fileUrl={form.documentUrl}
+              onUploadSuccess={(url) => setForm({ ...form, documentUrl: url })}
+              onRemove={() => setForm({ ...form, documentUrl: '' })}
+              label="Upload Official Mark Sheet / Transcript (PDF or Image)"
+              required={true}
+              helperText="Upload official stamped mark sheet or university transcript (Max 5MB)."
             />
           </div>
 
@@ -738,7 +657,7 @@ export const StudentCertifications: React.FC = () => {
               disabled={saving}
               className="px-5 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl transition-colors"
             >
-              {saving ? 'Submitting...' : editingCert ? 'Update Certificate' : 'Submit for Verification'}
+              {saving ? 'Uploading...' : editingReport ? 'Update Mark Sheet' : 'Submit for Verification'}
             </button>
           </div>
         </form>
@@ -748,7 +667,7 @@ export const StudentCertifications: React.FC = () => {
       <Modal
         isOpen={isPreviewModalOpen}
         onClose={() => setIsPreviewModalOpen(false)}
-        title={previewDocTitle || 'Certificate Document Preview'}
+        title={previewDocTitle || 'Academic Document Preview'}
       >
         <div className="space-y-4">
           {previewDocUrl && (
@@ -756,13 +675,13 @@ export const StudentCertifications: React.FC = () => {
               {previewDocUrl.toLowerCase().includes('.pdf') ? (
                 <iframe
                   src={previewDocUrl}
-                  title="PDF Preview"
+                  title="Mark Sheet PDF Preview"
                   className="w-full h-[550px] border-0 rounded-xl"
                 />
               ) : (
                 <img
                   src={previewDocUrl}
-                  alt="Certificate Document"
+                  alt="Academic Document"
                   className="max-h-[550px] max-w-full object-contain mx-auto rounded-xl p-2"
                 />
               )}

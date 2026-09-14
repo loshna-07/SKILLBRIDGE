@@ -18,6 +18,8 @@ import { StudentAssessments } from './pages/student/StudentAssessments';
 import { StudentSkillMapping } from './pages/student/StudentSkillMapping';
 import { StudentSkills } from './pages/student/StudentSkills';
 import { StudentCertifications } from './pages/student/StudentCertifications';
+import { StudentAcademicReports } from './pages/student/StudentAcademicReports';
+import { StudentAchievements } from './pages/student/StudentAchievements';
 import { StudentInternships } from './pages/student/StudentInternships';
 import { StudentJobs } from './pages/student/StudentJobs';
 import { StudentLearning } from './pages/student/StudentLearning';
@@ -84,6 +86,8 @@ export const App: React.FC = () => {
               <Route path="skill-mapping" element={<StudentSkillMapping />} />
               <Route path="skills" element={<StudentSkills />} />
               <Route path="certifications" element={<StudentCertifications />} />
+              <Route path="academic-reports" element={<StudentAcademicReports />} />
+              <Route path="achievements" element={<StudentAchievements />} />
               <Route path="internships" element={<StudentInternships />} />
               <Route path="jobs" element={<StudentJobs />} />
               <Route path="learning" element={<StudentLearning />} />

@@ -164,11 +164,21 @@ export const getOpportunityById = async (req: AuthRequest, res: Response): Promi
         skills: {
           include: { skill: true },
         },
+        subSkillRequirements: {
+          include: {
+            subSkill: {
+              include: { skill: true, topics: true },
+            },
+          },
+        },
         assessment: {
           include: {
             questions: {
               include: {
                 skill: true,
+                subSkill: {
+                  include: { topics: true },
+                },
                 options: {
                   select: {
                     id: true,
@@ -273,6 +283,8 @@ export const createOpportunity = async (req: AuthRequest, res: Response): Promis
       skillIds,
       requiredSkills,
       preferredSkills,
+      subSkills,
+      granularRequirements,
       assessmentRequired,
       assessmentData,
       assessment,
@@ -297,7 +309,7 @@ export const createOpportunity = async (req: AuthRequest, res: Response): Promis
         : eligibleDegrees) ||
       null;
 
-    // Collect skills to link
+    // Collect high-level skills to link
     const skillsToLink: Array<{ skillId: string; isRequired: boolean }> = [];
 
     if (Array.isArray(skillIds) && skillIds.length > 0) {
@@ -332,6 +344,24 @@ export const createOpportunity = async (req: AuthRequest, res: Response): Promis
       }
     }
 
+    // Collect granular sub-skills to link
+    const subSkillsToLink: Array<{ subSkillId: string; isRequired: boolean; minScore: number; minProficiency?: string }> = [];
+    const rawSubSkills = granularRequirements || subSkills;
+    if (Array.isArray(rawSubSkills) && rawSubSkills.length > 0) {
+      for (const sub of rawSubSkills) {
+        if (typeof sub === 'string') {
+          subSkillsToLink.push({ subSkillId: sub, isRequired: true, minScore: 70.0 });
+        } else if (typeof sub === 'object' && (sub.subSkillId || sub.id)) {
+          subSkillsToLink.push({
+            subSkillId: sub.subSkillId || sub.id,
+            isRequired: sub.isRequired !== undefined ? Boolean(sub.isRequired) : true,
+            minScore: sub.minScore ? parseFloat(sub.minScore) : 70.0,
+            minProficiency: sub.minProficiency || 'INTERMEDIATE',
+          });
+        }
+      }
+    }
+
     // Validate assessmentData if assessmentRequired
     const rawAssessment = assessmentData || assessment;
     const isAssessmentRequired = assessmentRequired !== undefined ? Boolean(assessmentRequired) : Boolean(rawAssessment);
@@ -344,7 +374,7 @@ export const createOpportunity = async (req: AuthRequest, res: Response): Promis
 
       for (let i = 0; i < rawAssessment.questions.length; i++) {
         const q = rawAssessment.questions[i];
-        if (!q.questionText || !q.skillId) {
+        if (!q.questionText || (!q.skillId && !q.subSkillId)) {
           res.status(400).json({ message: `Question #${i + 1} must include question text and a linked skill.` });
           return;
         }
@@ -395,6 +425,18 @@ export const createOpportunity = async (req: AuthRequest, res: Response): Promis
         });
       }
 
+      for (const sub of subSkillsToLink) {
+        await tx.opportunitySubSkill.create({
+          data: {
+            opportunityId: created.id,
+            subSkillId: sub.subSkillId,
+            isRequired: sub.isRequired,
+            minScore: sub.minScore,
+            minProficiency: sub.minProficiency,
+          },
+        });
+      }
+
       // Create linked Assessment if configured
       if (isAssessmentRequired && rawAssessment) {
         const durationMinutes = rawAssessment.durationMinutes
@@ -422,7 +464,9 @@ export const createOpportunity = async (req: AuthRequest, res: Response): Promis
           await tx.question.create({
             data: {
               assessmentId: createdAssessment.id,
-              skillId: q.skillId,
+              skillId: q.skillId || null,
+              subSkillId: q.subSkillId || null,
+              topicName: q.topicName || null,
               questionText: q.questionText,
               difficulty: q.difficulty || 'MEDIUM',
               weightage,
@@ -835,12 +879,24 @@ export const submitOpportunityAssessment = async (req: AuthRequest, res: Respons
 
     const assessment = opp.assessment;
 
-    // Check academic eligibility
+    // Check academic eligibility (CGPA, Department, Degree, Deadline)
     const match = await calculateOpportunityMatch(student.id, opportunityId);
-    if (!match.eligibility.isEligible) {
+    const isAcademicallyEligible =
+      match.eligibility.cgpaEligible &&
+      match.eligibility.departmentEligible &&
+      match.eligibility.degreeEligible &&
+      match.eligibility.deadlineEligible;
+
+    if (!isAcademicallyEligible) {
+      const academicIneligibleReasons = match.eligibility.ineligibleReasons.filter(
+        (r) => !r.toLowerCase().includes('mandatory skill')
+      );
       res.status(403).json({
         message: 'You are not academically eligible to apply for this opportunity.',
-        ineligibleReasons: match.eligibility.ineligibleReasons,
+        ineligibleReasons:
+          academicIneligibleReasons.length > 0
+            ? academicIneligibleReasons
+            : match.eligibility.ineligibleReasons,
       });
       return;
     }
@@ -1297,6 +1353,15 @@ export const getOpportunityApplicants = async (req: AuthRequest, res: Response):
               include: { assessment: true },
               orderBy: { completedAt: 'desc' },
             },
+            courseEnrollments: {
+              include: {
+                course: {
+                  include: {
+                    skills: { include: { skill: true } },
+                  },
+                },
+              },
+            },
           },
         },
         opportunity: {
@@ -1322,7 +1387,7 @@ export const getOpportunityApplicants = async (req: AuthRequest, res: Response):
       );
     }
 
-    // Enhance each applicant with parsed breakdown and strengths vs gaps
+    // Enhance each applicant with parsed breakdown, course interventions and academic mentor
     const enhanced = applications.map((app) => {
       let parsedBreakdown: any = null;
       if (app.assessmentBreakdown) {
@@ -1351,6 +1416,25 @@ export const getOpportunityApplicants = async (req: AuthRequest, res: Response):
         }
       });
 
+      // Extract active or completed course interventions
+      const courseInterventions = (app.student?.courseEnrollments || []).map((ce: any) => ({
+        courseId: ce.courseId,
+        title: ce.course?.title,
+        providerName: ce.course?.providerName,
+        providerRole: ce.course?.providerRole,
+        progressPercentage: ce.progressPercentage,
+        status: ce.status,
+        skills: ce.course?.skills?.map((s: any) => s.skill.name) || [],
+      }));
+
+      // Look up academic mentor (e.g. Dr. Ananya Krishnan)
+      const academicMentor = {
+        name: 'Dr. Ananya Krishnan',
+        designation: 'Assistant Professor (Kayachikitsa) & Research Lead',
+        department: app.student?.department || 'Ayurvedic Clinical Medicine & Kayachikitsa',
+        institution: app.student?.institutionName || 'Sri Dhanvantari Ayurveda College',
+      };
+
       return {
         ...app,
         parsedBreakdown,
@@ -1359,6 +1443,8 @@ export const getOpportunityApplicants = async (req: AuthRequest, res: Response):
         skillGaps: parsedBreakdown?.skillGaps || skillGaps,
         assessmentScore: app.assessmentScore ?? parsedBreakdown?.overallScore ?? null,
         assessmentPassed: app.assessmentPassed ?? parsedBreakdown?.passed ?? null,
+        courseInterventions,
+        academicMentor,
       };
     });
 
@@ -1421,6 +1507,74 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response): 
 
       return app;
     });
+
+    // Cross-Portal Real-Time Synchronization Notifications
+    try {
+      const fullApp = await prisma.application.findUnique({
+        where: { id },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+          opportunity: {
+            include: {
+              industry: true,
+            },
+          },
+        },
+      });
+
+      if (fullApp && fullApp.student) {
+        // 1. Notify Student
+        await sendNotification({
+          userId: fullApp.student.userId,
+          title: `Application Status: ${status}`,
+          message: `Your application for '${fullApp.opportunity.title}' at ${fullApp.opportunity.industry.companyName} has been updated to ${status}.`,
+          link: `/student/internships`,
+        });
+
+        // 2. Notify Institution
+        const institutionUser = await prisma.institutionProfile.findFirst({
+          where: {
+            institutionName: { contains: fullApp.student.institutionName, mode: 'insensitive' },
+          },
+          select: { userId: true },
+        });
+
+        if (institutionUser?.userId) {
+          await sendNotification({
+            userId: institutionUser.userId,
+            title: `Student Application Update: ${status}`,
+            message: `Student ${fullApp.student.fullName} (${fullApp.student.department}) is now ${status} for '${fullApp.opportunity.title}' at ${fullApp.opportunity.industry.companyName}.`,
+            link: `/institution/students`,
+          });
+        }
+
+        // 3. Notify Connected Academician / Mentor
+        const acadMentor = await prisma.academicianProfile.findFirst({
+          where: {
+            OR: [
+              { institutionName: { contains: fullApp.student.institutionName, mode: 'insensitive' } },
+              { department: { contains: fullApp.student.department, mode: 'insensitive' } },
+            ],
+          },
+          select: { userId: true, fullName: true },
+        });
+
+        if (acadMentor?.userId) {
+          await sendNotification({
+            userId: acadMentor.userId,
+            title: `Mentee Application Update: ${status}`,
+            message: `Mentee ${fullApp.student.fullName} has been updated to ${status} for '${fullApp.opportunity.title}' at ${fullApp.opportunity.industry.companyName}.`,
+            link: `/academician/dashboard`,
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('Failed to send status update notification:', notifErr);
+    }
 
     res.json({ message: `Application status updated to ${status}.`, application: updated });
   } catch (error: any) {

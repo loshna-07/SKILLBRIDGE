@@ -39,6 +39,23 @@ export interface AssessmentSkillBreakdown {
   isGap?: boolean;
 }
 
+export interface CourseIntervention {
+  courseId: string;
+  title: string;
+  providerName: string;
+  providerRole: string;
+  progressPercentage: number;
+  status: string;
+  skills: string[];
+}
+
+export interface AcademicMentorInfo {
+  name: string;
+  designation: string;
+  department: string;
+  institution: string;
+}
+
 export interface EnhancedApplicant extends Omit<Application, 'status'> {
   status: 'APPLIED' | 'UNDER_REVIEW' | 'SHORTLISTED' | 'INTERVIEW' | 'SELECTED' | 'REJECTED' | 'WITHDRAWN' | 'ASSESSMENT_FAILED' | string;
   assessmentScore?: number | null;
@@ -58,9 +75,12 @@ export interface EnhancedApplicant extends Omit<Application, 'status'> {
   } | null;
   isEligible?: boolean;
   ineligibleReasons?: string[];
+  courseInterventions?: CourseIntervention[];
+  academicMentor?: AcademicMentorInfo;
   student?: StudentProfile & {
     skillProfiles?: StudentSkillProfile[];
     assessmentAttempts?: any[];
+    courseEnrollments?: any[];
   };
   opportunity?: Opportunity & {
     applications?: Application[];
@@ -452,6 +472,76 @@ export const IndustryApplicants: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Connected Academic Mentorship & Active Learning Intervention */}
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-50/70 via-indigo-50/50 to-sky-50/70 border border-purple-100/80 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
+                        <GraduationCap className="w-4 h-4 text-purple-600" />
+                        <span>Academic Mentor & Learning Intervention</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="px-2 py-0.5 text-[9px] font-bold rounded-md bg-purple-100 text-purple-800 border border-purple-200 uppercase tracking-wider">
+                          Tripartite Active
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-start gap-2 bg-white/80 p-2.5 rounded-xl border border-purple-100">
+                        <Users className="w-3.5 h-3.5 text-purple-600 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-500 uppercase">Faculty Mentor</div>
+                          <div className="font-semibold text-slate-900">
+                            {app.academicMentor?.name || 'Dr. Ananya Krishnan'}
+                          </div>
+                          <div className="text-[10px] text-slate-600">
+                            {app.academicMentor?.designation || 'Assistant Professor (Kayachikitsa)'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2 bg-white/80 p-2.5 rounded-xl border border-purple-100">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                        <div className="w-full">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase">Bridging Course Intervention</div>
+                          <div className="font-semibold text-slate-900 truncate">
+                            {app.courseInterventions?.[0]?.title || 'Applied Ayurvedic Clinical Research & Scientific Writing'}
+                          </div>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <span className="text-[10px] text-indigo-700 font-medium">
+                              Progress: {app.courseInterventions?.[0]?.progressPercentage ?? 0}%
+                            </span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800">
+                              {app.courseInterventions?.[0]?.status || 'ENROLLED'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 6 Collaborative Badges */}
+                    <div className="flex flex-wrap gap-1 pt-1 border-t border-purple-100/60">
+                      <span className="text-[9px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1">
+                        <Building className="w-2.5 h-2.5 text-slate-500" /> Industry Requirement
+                      </span>
+                      <span className="text-[9px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1">
+                        <Award className="w-2.5 h-2.5 text-purple-600" /> Industry Assessment
+                      </span>
+                      <span className="text-[9px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md border border-sky-200 flex items-center gap-1">
+                        <Target className="w-2.5 h-2.5 text-sky-600" /> Skill Profile
+                      </span>
+                      <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
+                        <AlertTriangle className="w-2.5 h-2.5 text-amber-600" /> Skill Gap
+                      </span>
+                      <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                        <GraduationCap className="w-2.5 h-2.5 text-emerald-600" /> Academic Mentor
+                      </span>
+                      <span className="text-[9px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md border border-indigo-200 flex items-center gap-1">
+                        <Zap className="w-2.5 h-2.5 text-indigo-600" /> Learning Intervention
+                      </span>
+                    </div>
+                  </div>
+
                   {/* Cover Letter */}
                   {app.coverLetter && (
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 leading-relaxed">
@@ -728,6 +818,44 @@ export const IndustryApplicants: React.FC = () => {
                     <li className="text-xs text-emerald-700 font-medium">Candidate meets all benchmark competencies.</li>
                   )}
                 </ul>
+              </div>
+            </div>
+
+            {/* Academic Mentorship & Bridging Course Intervention In-Depth */}
+            <div className="p-4 bg-gradient-to-br from-indigo-50/70 to-purple-50/70 rounded-2xl border border-indigo-200/80 space-y-3">
+              <h5 className="text-xs font-bold uppercase tracking-wider text-indigo-950 flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-indigo-600" />
+                Cross-Portal Institutional Mentorship & Learning Intervention
+              </h5>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">Assigned Academic Mentor</div>
+                  <div className="font-bold text-slate-900">
+                    {activeCandidateApp.academicMentor?.name || 'Dr. Ananya Krishnan'}
+                  </div>
+                  <div className="text-slate-600 text-[11px]">
+                    {activeCandidateApp.academicMentor?.designation || 'Assistant Professor (Kayachikitsa)'}
+                  </div>
+                  <div className="text-slate-500 text-[10px]">
+                    {activeCandidateApp.academicMentor?.institution || 'Sri Dhanvantari Ayurveda College'}
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">Target Bridging Course</div>
+                  <div className="font-bold text-slate-900">
+                    {activeCandidateApp.courseInterventions?.[0]?.title || 'Applied Ayurvedic Clinical Research & Scientific Writing'}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-xs font-semibold text-indigo-700">
+                      Progress: {activeCandidateApp.courseInterventions?.[0]?.progressPercentage ?? 0}%
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                      {activeCandidateApp.courseInterventions?.[0]?.status || 'ENROLLED'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

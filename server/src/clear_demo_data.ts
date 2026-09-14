@@ -32,12 +32,22 @@ export async function clearDemoData() {
     console.log(`Found ${demoUsers.length} demo users and ${realUsersCount} real users.`);
 
     if (realUsersCount === 0) {
-      // Clean wholesale purge for development / demo resets
+      await prisma.skillEvidence.deleteMany({});
+      await prisma.industryInstitutionPartnership.deleteMany({});
+      await prisma.oTPVerification.deleteMany({});
+      await prisma.roadmapResource.deleteMany({});
+      await prisma.roadmapStep.deleteMany({});
+      await prisma.learningRoadmap.deleteMany({});
+      await prisma.skillDependency.deleteMany({});
+      await prisma.careerRoleSkill.deleteMany({});
+      await prisma.careerRole.deleteMany({});
+
       await prisma.courseCertificate.deleteMany({});
       await prisma.courseLessonProgress.deleteMany({});
       await prisma.courseEnrollment.deleteMany({});
       await prisma.courseLesson.deleteMany({});
       await prisma.courseModule.deleteMany({});
+      await prisma.courseSubSkill.deleteMany({});
       await prisma.courseSkill.deleteMany({});
       await prisma.course.deleteMany({});
 
@@ -56,6 +66,7 @@ export async function clearDemoData() {
       await prisma.interview.deleteMany({});
       await prisma.applicationStatusHistory.deleteMany({});
       await prisma.application.deleteMany({});
+      await prisma.opportunitySubSkill.deleteMany({});
       await prisma.opportunitySkill.deleteMany({});
       await prisma.opportunity.deleteMany({});
 
@@ -65,6 +76,8 @@ export async function clearDemoData() {
       await prisma.question.deleteMany({});
       await prisma.assessment.deleteMany({});
 
+      await prisma.skillProgressSnapshot.deleteMany({});
+      await prisma.studentSubSkillScore.deleteMany({});
       await prisma.studentSkillProfile.deleteMany({});
       await prisma.studentEducation.deleteMany({});
       await prisma.studentCertification.deleteMany({});
@@ -73,6 +86,8 @@ export async function clearDemoData() {
       await prisma.studentAchievement.deleteMany({});
       await prisma.studentTraining.deleteMany({});
 
+      await prisma.skillTopic.deleteMany({});
+      await prisma.skillSubSkill.deleteMany({});
       await prisma.skill.deleteMany({});
       await prisma.skillCategory.deleteMany({});
 
@@ -92,6 +107,7 @@ export async function clearDemoData() {
 
       // Delete demo student records
       if (demoStudentIds.length > 0) {
+        await prisma.learningRoadmap.deleteMany({ where: { studentId: { in: demoStudentIds } } });
         await prisma.courseCertificate.deleteMany({ where: { studentId: { in: demoStudentIds } } });
         await prisma.courseEnrollment.deleteMany({ where: { studentId: { in: demoStudentIds } } });
         await prisma.application.deleteMany({ where: { studentId: { in: demoStudentIds } } });

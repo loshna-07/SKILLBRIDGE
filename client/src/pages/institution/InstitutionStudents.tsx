@@ -248,8 +248,8 @@ export const InstitutionStudents: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={studentDetail ? `${studentDetail.fullName} • Academic Profile` : 'Student Details'}
-        maxWidth="2xl"
+        title={studentDetail ? `${studentDetail.fullName} • Academic & Industry Readiness Profile` : 'Student Details'}
+        maxWidth="4xl"
       >
         {detailLoading ? (
           <div className="flex items-center justify-center py-16">
@@ -258,27 +258,133 @@ export const InstitutionStudents: React.FC = () => {
         ) : studentDetail ? (
           <div className="space-y-6 pt-2">
             {/* Header info */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">{studentDetail.fullName}</h3>
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase mb-1">
+                  Enrolled Candidate &bull; {studentDetail.institutionName}
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">{studentDetail.fullName}</h3>
                 <p className="text-xs text-slate-600 mt-0.5">
                   {studentDetail.degree} &bull; {studentDetail.department}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Year {studentDetail.currentYear} &bull; Roll: {studentDetail.rollNumber || 'N/A'}
+                  Year {studentDetail.currentYear} &bull; Graduation: {studentDetail.graduationYear || '2026'}
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-center">
+                <div className="px-3.5 py-2 rounded-xl bg-white border border-emerald-200 text-center shadow-sm">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">CGPA</span>
-                  <span className="text-base font-black text-emerald-700">{studentDetail.cgpa || 'N/A'}</span>
+                  <span className="text-lg font-black text-emerald-700">{studentDetail.cgpa || 'N/A'}</span>
                 </div>
-                <div className="px-3 py-1.5 rounded-xl bg-white border border-blue-200 text-center">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Avg Score</span>
-                  <span className="text-base font-black text-blue-700">{studentDetail.avgScore}%</span>
+                <div className="px-3.5 py-2 rounded-xl bg-white border border-blue-200 text-center shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Assessments</span>
+                  <span className="text-lg font-black text-blue-700">
+                    {studentDetail.assessmentAttempts?.length || 0}
+                  </span>
+                </div>
+                <div className="px-3.5 py-2 rounded-xl bg-white border border-purple-200 text-center shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Applications</span>
+                  <span className="text-lg font-black text-purple-700">
+                    {studentDetail.applications?.length || 0}
+                  </span>
                 </div>
               </div>
+            </div>
+
+            {/* 14-Stage Industry Readiness Journey Timeline */}
+            <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                      Industry Readiness Journey &bull; 14-Stage Real-Time Tracking
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                    Live dynamic synchronization across Student, Academician Mentor, Institution, and Industry.
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
+                  Live Institutional Audit Trail
+                </span>
+              </div>
+
+              {studentDetail.journeyTimeline && studentDetail.journeyTimeline.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                  {studentDetail.journeyTimeline.map((stage: any) => (
+                    <div
+                      key={stage.stageNumber}
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        stage.status === 'COMPLETED'
+                          ? 'bg-emerald-50/70 dark:bg-slate-800/80 border-emerald-200 dark:border-emerald-500/30'
+                          : stage.status === 'IN_PROGRESS'
+                          ? 'bg-indigo-50/70 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-500/40'
+                          : 'bg-slate-100/70 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/40 opacity-75'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 mt-0.5 ${
+                            stage.status === 'COMPLETED'
+                              ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950'
+                              : stage.status === 'IN_PROGRESS'
+                              ? 'bg-indigo-600 dark:bg-indigo-500 text-white animate-pulse'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          {stage.status === 'COMPLETED' ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                          ) : (
+                            stage.stageNumber
+                          )}
+                        </div>
+
+                        <div className="w-full space-y-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                {stage.title}
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                ({stage.category})
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              {stage.badge && (
+                                <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-white/10 text-emerald-800 dark:text-emerald-300 text-[10px] font-semibold border border-emerald-200 dark:border-white/10">
+                                  {stage.badge}
+                                </span>
+                              )}
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                  stage.status === 'COMPLETED'
+                                    ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40'
+                                    : stage.status === 'IN_PROGRESS'
+                                    ? 'bg-sky-100 dark:bg-sky-500/20 text-sky-800 dark:text-sky-300 border border-sky-300 dark:border-sky-500/40'
+                                    : 'bg-slate-200 dark:bg-slate-700/40 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600/40'
+                                }`}
+                              >
+                                {stage.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            {stage.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic py-4 text-center">
+                  Timeline initializing...
+                </p>
+              )}
             </div>
 
             {/* Career Interests */}
@@ -331,37 +437,6 @@ export const InstitutionStudents: React.FC = () => {
               )}
             </div>
 
-            {/* Certifications */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-                Certifications ({studentDetail.certifications?.length || 0})
-              </h4>
-              {studentDetail.certifications?.length === 0 ? (
-                <p className="text-xs text-slate-500 italic">No uploaded certifications.</p>
-              ) : (
-                <div className="space-y-2">
-                  {studentDetail.certifications.map((cert: any) => (
-                    <div
-                      key={cert.id}
-                      className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <span className="font-bold text-slate-900 block">{cert.title}</span>
-                        <span className="text-slate-500 text-[11px]">{cert.issuingOrganization}</span>
-                      </div>
-                      <Badge
-                        variant={cert.verificationStatus === 'VERIFIED' ? 'success' : 'warning'}
-                        size="sm"
-                      >
-                        {cert.verificationStatus}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Applications & Placement History */}
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
@@ -375,12 +450,12 @@ export const InstitutionStudents: React.FC = () => {
                   {studentDetail.applications.map((app: any) => (
                     <div
                       key={app.id}
-                      className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs"
+                      className="p-3.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs shadow-sm"
                     >
                       <div>
                         <span className="font-bold text-slate-900 block">{app.opportunity?.title}</span>
                         <span className="text-slate-500 text-[11px]">
-                          {app.opportunity?.industry?.companyName} &bull; {app.opportunity?.type}
+                          {app.opportunity?.industry?.companyName} &bull; {app.opportunity?.type} &bull; Match Score: {app.matchScore}%
                         </span>
                       </div>
                       <span

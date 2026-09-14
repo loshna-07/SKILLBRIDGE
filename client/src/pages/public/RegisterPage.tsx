@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Navbar } from '../../components/common/Navbar';
 import { UserRole } from '../../types';
+import api from '../../services/api';
 import {
   GraduationCap,
   Building2,
@@ -10,15 +11,26 @@ import {
   School,
   ArrowRight,
   AlertCircle,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('STUDENT');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [institutions, setInstitutions] = useState<any[]>([]);
 
   const { register, getRoleDashboardPath } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    api
+      .get('/institution/public-list')
+      .then((res) => {
+        setInstitutions(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((err) => console.error('Failed to load institutions:', err));
+  }, []);
 
   // Student Form State
   const [studentForm, setStudentForm] = useState({
@@ -29,6 +41,7 @@ export const RegisterPage: React.FC = () => {
     phone: '',
     dob: '',
     gender: 'Male',
+    institutionId: '',
     institutionName: '',
     department: '',
     degree: '',
@@ -45,6 +58,7 @@ export const RegisterPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     phone: '',
+    institutionId: '',
     institutionName: '',
     department: '',
     designation: '',
@@ -289,15 +303,45 @@ export const RegisterPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Institution Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={studentForm.institutionName}
-                      onChange={(e) => setStudentForm({ ...studentForm, institutionName: e.target.value })}
-                      placeholder="e.g., IIT Delhi / NIT Trichy"
-                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200"
-                    />
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Affiliated Institution *</label>
+                    {institutions.length > 0 ? (
+                      <select
+                        value={studentForm.institutionId || (studentForm.institutionName ? '__OTHER__' : '')}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '__OTHER__') {
+                            setStudentForm({ ...studentForm, institutionId: '', institutionName: '' });
+                          } else {
+                            const inst = institutions.find((i) => i.id === val);
+                            setStudentForm({
+                              ...studentForm,
+                              institutionId: val,
+                              institutionName: inst ? inst.institutionName : '',
+                            });
+                          }
+                        }}
+                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+                        required
+                      >
+                        <option value="">-- Select Registered Institution --</option>
+                        {institutions.map((inst) => (
+                          <option key={inst.id} value={inst.id}>
+                            {inst.institutionName} ({inst.institutionType || 'Institution'})
+                          </option>
+                        ))}
+                        <option value="__OTHER__">Other / Unlisted Institution (Enter Manually)</option>
+                      </select>
+                    ) : null}
+                    {(!studentForm.institutionId || institutions.length === 0) && (
+                      <input
+                        type="text"
+                        required
+                        value={studentForm.institutionName}
+                        onChange={(e) => setStudentForm({ ...studentForm, institutionName: e.target.value })}
+                        placeholder="Enter full institution name"
+                        className={`w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 ${institutions.length > 0 ? 'mt-2' : ''}`}
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Department *</label>
@@ -433,15 +477,45 @@ export const RegisterPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Institution Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={academicianForm.institutionName}
-                      onChange={(e) => setAcademicianForm({ ...academicianForm, institutionName: e.target.value })}
-                      placeholder="e.g., Delhi Technological University"
-                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200"
-                    />
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Affiliated Institution *</label>
+                    {institutions.length > 0 ? (
+                      <select
+                        value={academicianForm.institutionId || (academicianForm.institutionName ? '__OTHER__' : '')}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '__OTHER__') {
+                            setAcademicianForm({ ...academicianForm, institutionId: '', institutionName: '' });
+                          } else {
+                            const inst = institutions.find((i) => i.id === val);
+                            setAcademicianForm({
+                              ...academicianForm,
+                              institutionId: val,
+                              institutionName: inst ? inst.institutionName : '',
+                            });
+                          }
+                        }}
+                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+                        required
+                      >
+                        <option value="">-- Select Registered Institution --</option>
+                        {institutions.map((inst) => (
+                          <option key={inst.id} value={inst.id}>
+                            {inst.institutionName} ({inst.institutionType || 'Institution'})
+                          </option>
+                        ))}
+                        <option value="__OTHER__">Other / Unlisted Institution (Enter Manually)</option>
+                      </select>
+                    ) : null}
+                    {(!academicianForm.institutionId || institutions.length === 0) && (
+                      <input
+                        type="text"
+                        required
+                        value={academicianForm.institutionName}
+                        onChange={(e) => setAcademicianForm({ ...academicianForm, institutionName: e.target.value })}
+                        placeholder="Enter full institution name"
+                        className={`w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 ${institutions.length > 0 ? 'mt-2' : ''}`}
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Department *</label>

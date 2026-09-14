@@ -135,6 +135,42 @@ export const getAcademicianDashboard = async (req: AuthRequest, res: Response): 
       take: 5,
     });
 
+    // Find active collaborative projects involving this academician or their institution
+    const activeResearchProject = await prisma.collaboration.findFirst({
+      where: {
+        OR: [
+          { title: { contains: 'Panchakarma', mode: 'insensitive' } },
+          { applications: { some: { academicianId: academician.id, status: 'ACCEPTED' } } },
+        ],
+      },
+      include: {
+        applications: true,
+      },
+    });
+
+    // Find student mentee(s) in this department/institution
+    const menteeStudents = await prisma.studentProfile.findMany({
+      where: {
+        institutionName: { contains: academician.institutionName, mode: 'insensitive' },
+        department: { contains: academician.department, mode: 'insensitive' },
+      },
+      include: {
+        skillProfiles: { include: { skill: true } },
+        assessmentAttempts: {
+          include: { assessment: true },
+          orderBy: { completedAt: 'desc' },
+        },
+        applications: {
+          include: { opportunity: { include: { industry: true } } },
+          orderBy: { appliedAt: 'desc' },
+        },
+        courseEnrollments: {
+          include: { course: true },
+        },
+      },
+      take: 5,
+    });
+
     res.json({
       academician,
       stats: {
@@ -155,6 +191,25 @@ export const getAcademicianDashboard = async (req: AuthRequest, res: Response): 
       },
       recentOpportunities,
       recentParticipations,
+      connectedMentorship: {
+        project: activeResearchProject,
+        mentees: menteeStudents.map((s) => ({
+          id: s.id,
+          fullName: s.fullName,
+          department: s.department,
+          degree: s.degree,
+          currentYear: s.currentYear,
+          cgpa: s.cgpa,
+          skills: s.skillProfiles.map((sp) => ({ name: sp.skill.name, score: sp.scorePercentage, level: sp.proficiencyLevel })),
+          latestAssessment: s.assessmentAttempts[0] || null,
+          latestApplication: s.applications[0] || null,
+          courseEnrollments: s.courseEnrollments.map((ce) => ({
+            courseTitle: ce.course.title,
+            progressPercentage: ce.progressPercentage,
+            status: ce.status,
+          })),
+        })),
+      },
     });
   } catch (error: any) {
     console.error('getAcademicianDashboard error:', error);

@@ -23,6 +23,7 @@ model User {
   auditLogs     AuditLog[]
   notifications Notification[]
   collaborationFeedbacks CollaborationFeedback[]
+  otpVerifications OTPVerification[]
 }
 
 model StudentProfile {
@@ -33,6 +34,9 @@ model StudentProfile {
   dob                String?
   gender             String?
   institutionName    String
+  institutionId      String?
+  accountStatus      String   @default("APPROVED") // PENDING_APPROVAL, APPROVED, REJECTED
+  isVerified         Boolean  @default(true)
   department         String
   degree             String
   currentYear        Int?
@@ -46,19 +50,25 @@ model StudentProfile {
   careerInterests    String?
   preferredRoles     String?
   preferredLocations String?
+  targetCareer       String?
+  targetRoleId       String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution InstitutionProfile? @relation("InstitutionStudents", fields: [institutionId], references: [id], onDelete: SetNull)
 
-  skillProfiles       StudentSkillProfile[]
-  assessmentAttempts  AssessmentAttempt[]
-  applications        Application[]
-  learningEnrollments LearningEnrollment[]
-  mentorshipRequests  MentorshipRequest[]
+  skillProfiles          StudentSkillProfile[]
+  subSkillScores         StudentSubSkillScore[]
+  skillProgressSnapshots SkillProgressSnapshot[]
+  assessmentAttempts     AssessmentAttempt[]
+  applications           Application[]
+  learningEnrollments    LearningEnrollment[]
+  mentorshipRequests     MentorshipRequest[]
 
   educations   StudentEducation[]
   certificates StudentCertification[]
+  academicReports StudentAcademicReport[]
   projects     StudentProject[]
   internships  StudentInternshipExperience[]
   achievements StudentAchievement[]
@@ -66,6 +76,9 @@ model StudentProfile {
   collaborationApplications CollaborationApplication[]
   courseEnrollments   CourseEnrollment[]
   courseCertificates  CourseCertificate[]
+  targetCareerRole    CareerRole?                 @relation(fields: [targetRoleId], references: [id], onDelete: SetNull)
+  learningRoadmaps    LearningRoadmap[]
+  skillEvidence       SkillEvidence[]
 }
 
 model AcademicianProfile {
@@ -74,6 +87,9 @@ model AcademicianProfile {
   fullName          String
   phone             String?
   institutionName   String
+  institutionId     String?
+  accountStatus     String   @default("APPROVED") // PENDING_APPROVAL, APPROVED, REJECTED
+  isVerified        Boolean  @default(true)
   department        String
   designation       String
   yearsOfExperience Int?
@@ -84,28 +100,32 @@ model AcademicianProfile {
   updatedAt         DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution InstitutionProfile? @relation("InstitutionAcademicians", fields: [institutionId], references: [id], onDelete: SetNull)
   participations CollaborationApplication[]
 }
 
 model IndustryProfile {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  companyName    String
-  officialEmail  String
-  industrySector String
-  companySize    String?
-  website        String?
-  location       String?
-  description    String?
-  contactPerson  String?
-  contactNumber  String?
-  logoUrl        String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  companyName        String
+  officialEmail      String
+  industrySector     String
+  companySize        String?
+  website            String?
+  location           String?
+  description        String?
+  contactPerson      String?
+  contactNumber      String?
+  logoUrl            String?
+  verificationStatus String   @default("VERIFIED") // PENDING_PLATFORM_VERIFICATION, VERIFIED, REJECTED
+  isVerified         Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   opportunities Opportunity[]
   mentorships   MentorshipProgram[]
+  partnerships  IndustryInstitutionPartnership[]
 }
 
 model InstitutionProfile {
@@ -120,11 +140,16 @@ model InstitutionProfile {
   contactPerson        String?
   contactNumber        String?
   logoUrl              String?
+  verificationStatus   String   @default("VERIFIED") // PENDING_PLATFORM_VERIFICATION, VERIFIED, REJECTED
+  isVerified           Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students StudentProfile[] @relation("InstitutionStudents")
+  academicians AcademicianProfile[] @relation("InstitutionAcademicians")
   collaborationApplications CollaborationApplication[]
+  partnerships IndustryInstitutionPartnership[]
 }
 
 model SkillCategory {
@@ -145,11 +170,13 @@ model Skill {
   createdAt   DateTime @default(now())
 
   category            SkillCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subSkills           SkillSubSkill[]
   studentSkills       StudentSkillProfile[]
   opportunitySkills   OpportunitySkill[]
   learningSkills      LearningProgramSkill[]
   courseSkills        CourseSkill[]
   questions           Question[]
+  evidence            SkillEvidence[]
 }
 
 model Assessment {
@@ -176,6 +203,8 @@ model Question {
   id           String   @id @default(uuid())
   assessmentId String
   skillId      String?
+  subSkillId   String?
+  topicName    String?
   questionText String
   difficulty   String   @default("MEDIUM") // EASY, MEDIUM, HARD
   weightage    Int      @default(1)
@@ -183,6 +212,7 @@ model Question {
 
   assessment Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   skill      Skill?           @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  subSkill   SkillSubSkill?   @relation(fields: [subSkillId], references: [id], onDelete: SetNull)
   options    QuestionOption[]
   responses  AssessmentResponse[]
 }
@@ -198,18 +228,19 @@ model QuestionOption {
 }
 
 model AssessmentAttempt {
-  id             String    @id @default(uuid())
-  studentId      String
-  assessmentId   String
-  opportunityId  String?
-  applicationId  String?
-  score          Float     @default(0)
-  totalScore     Float     @default(0)
-  percentage     Float     @default(0)
-  passed         Boolean   @default(false)
-  skillBreakdown String?
-  startedAt      DateTime  @default(now())
-  completedAt    DateTime?
+  id                String    @id @default(uuid())
+  studentId         String
+  assessmentId      String
+  opportunityId     String?
+  applicationId     String?
+  score             Float     @default(0)
+  totalScore        Float     @default(0)
+  percentage        Float     @default(0)
+  passed            Boolean   @default(false)
+  skillBreakdown    String?
+  granularBreakdown String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
 
   student    StudentProfile       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   assessment Assessment           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -273,10 +304,12 @@ model Opportunity {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  industry     IndustryProfile    @relation(fields: [industryId], references: [id], onDelete: Cascade)
-  skills       OpportunitySkill[]
-  applications Application[]
-  assessment   Assessment?
+  industry             IndustryProfile       @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  skills               OpportunitySkill[]
+  subSkillRequirements OpportunitySubSkill[]
+  applications         Application[]
+  assessment           Assessment?
+  roadmaps             LearningRoadmap[]
 }
 
 model OpportunitySkill {
@@ -405,18 +438,47 @@ model StudentCertification {
   id                  String    @id @default(uuid())
   studentId           String
   title               String
+  certificateType     String?   // Industry Certification, Online Course, Academic Assessment, Professional Workshop, Specialization
   issuingOrganization String
+  courseName          String?
+  category            String?
   issueDate           String?
   expiryDate          String?
   credentialId        String?
   credentialUrl       String?
   certificateDocUrl   String?
   skillsCovered       String?
+  description         String?
   verificationStatus  String    @default("PENDING") // PENDING, VERIFIED, REJECTED
   verifiedById        String?
   verifiedAt          DateTime?
   remarks             String?
   createdAt           DateTime  @default(now())
+
+  student  StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  evidence SkillEvidence[]
+}
+
+model StudentAcademicReport {
+  id                 String    @id @default(uuid())
+  studentId          String
+  reportType         String    @default("SEMESTER_MARKSHEET") // SEMESTER_MARKSHEET, TRANSCRIPT, GRADE_REPORT, ANNUAL_REPORT, PROVISIONAL_CERTIFICATE
+  academicYear       String    // e.g. "2023-2024"
+  semester           String    // e.g. "Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8", "Annual"
+  institution        String?
+  degree             String?
+  department         String?
+  yearOfStudy        String?   // "1st Year", "2nd Year", "3rd Year", "4th Year", "Final Year"
+  cgpa               Float?
+  percentage         Float?
+  description        String?
+  documentUrl        String?
+  verificationStatus String    @default("PENDING") // PENDING, VERIFIED, REJECTED
+  verifiedById       String?
+  verifiedAt         DateTime?
+  remarks            String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
@@ -460,9 +522,15 @@ model StudentAchievement {
   id                 String    @id @default(uuid())
   studentId          String
   title              String
+  achievementType    String?   // Academic Award, Hackathon / Competition, Research / Publication, Extracurricular / Sports, Leadership / Community, Paper Presentation
   category           String?
+  issuer             String?   // e.g. Ministry of AYUSH, University, National Council
+  level              String?   // College, University, State, National, International
+  position           String?   // 1st Place / Gold Medal, 2nd Place, Finalist, Special Recognition, Top 1%
+  relatedSkills      String?
   date               String?
   description        String?
+  documentUrl        String?
   verificationStatus String    @default("PENDING") // PENDING, VERIFIED, REJECTED
   verifiedById       String?
   verifiedAt         DateTime?
@@ -650,9 +718,11 @@ model Course {
   updatedAt             DateTime            @updatedAt
 
   skills                CourseSkill[]
+  subSkills             CourseSubSkill[]
   modules               CourseModule[]
   enrollments           CourseEnrollment[]
   certificates          CourseCertificate[]
+  recommendedInSteps   RoadmapStep[]
 }
 
 model CourseSkill {
@@ -747,4 +817,300 @@ model CourseCertificate {
   student            StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   course             Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
 }
+
+// =========================================================================
+// GRANULAR SKILL INTELLIGENCE & PERSONALIZED ROADMAP MODELS
+// =========================================================================
+
+model SkillSubSkill {
+  id          String   @id @default(uuid())
+  skillId     String
+  name        String
+  description String?
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  skill              Skill                  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  topics             SkillTopic[]
+  studentScores      StudentSubSkillScore[]
+  progressSnapshots  SkillProgressSnapshot[]
+  opportunitySkills  OpportunitySubSkill[]
+  courseSubSkills    CourseSubSkill[]
+  questions          Question[]
+  careerRoleSkills   CareerRoleSkill[]
+  prerequisiteFor    SkillDependency[]      @relation("PrerequisiteDependencies")
+  dependencies       SkillDependency[]      @relation("SkillDependencies")
+  roadmapSteps       RoadmapStep[]
+  evidence           SkillEvidence[]
+
+  @@unique([skillId, name])
+}
+
+model SkillTopic {
+  id          String   @id @default(uuid())
+  subSkillId  String
+  name        String
+  description String?
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  subSkill SkillSubSkill @relation(fields: [subSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([subSkillId, name])
+}
+
+model StudentSubSkillScore {
+  id                 String    @id @default(uuid())
+  studentId          String
+  subSkillId         String
+  scorePercentage    Float     @default(0)
+  proficiencyLevel   String    @default("BEGINNER") // BEGINNER, DEVELOPING, INTERMEDIATE, ADVANCED, EXPERT
+  questionsAttempted Int       @default(0)
+  questionsCorrect   Int       @default(0)
+  lastAssessedAt     DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  student  StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subSkill SkillSubSkill  @relation(fields: [subSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subSkillId])
+}
+
+model SkillProgressSnapshot {
+  id                  String   @id @default(uuid())
+  studentId           String
+  subSkillId          String
+  assessmentAttemptId String?
+  scorePercentage     Float
+  proficiencyLevel    String
+  deltaPercentage     Float?   @default(0)
+  recordedAt          DateTime @default(now())
+
+  student  StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subSkill SkillSubSkill  @relation(fields: [subSkillId], references: [id], onDelete: Cascade)
+}
+
+model OpportunitySubSkill {
+  id             String  @id @default(uuid())
+  opportunityId  String
+  subSkillId     String
+  isRequired     Boolean @default(true) // Mandatory (true) vs Preferred (false)
+  minScore       Float   @default(70.0)
+  minProficiency String? @default("INTERMEDIATE") // BEGINNER, DEVELOPING, INTERMEDIATE, ADVANCED, EXPERT
+
+  opportunity Opportunity   @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  subSkill    SkillSubSkill @relation(fields: [subSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityId, subSkillId])
+}
+
+model CourseSubSkill {
+  id            String  @id @default(uuid())
+  courseId      String
+  subSkillId    String
+  topicsCovered String?
+
+  course   Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subSkill SkillSubSkill @relation(fields: [subSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, subSkillId])
+}
+
+
+
+// =========================================================================
+// DYNAMIC AI CAREER ROADMAP & ROLE BENCHMARK MODELS
+// =========================================================================
+
+model CareerRole {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  domain          String   // ENGINEERING, AYURVEDA, COMMERCE, TECHNOLOGY
+  description     String?
+  targetReadiness Float    @default(80.0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  roleSkills      CareerRoleSkill[]
+  targetedBy      StudentProfile[]
+  roadmaps        LearningRoadmap[]
+}
+
+model CareerRoleSkill {
+  id              String   @id @default(uuid())
+  careerRoleId    String
+  subSkillId      String
+  isRequired      Boolean  @default(true) // Mandatory (true) vs Preferred (false)
+  minScore        Float    @default(75.0) // Target competency threshold
+  weight          Float    @default(1.0)  // Weight for Role Readiness % calculation
+  importanceOrder Int      @default(0)
+
+  careerRole CareerRole    @relation(fields: [careerRoleId], references: [id], onDelete: Cascade)
+  subSkill   SkillSubSkill @relation(fields: [subSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([careerRoleId, subSkillId])
+}
+
+model SkillDependency {
+  id                     String   @id @default(uuid())
+  subSkillId             String   // Advanced skill that depends on prerequisite
+  prerequisiteSubSkillId String   // Foundational prerequisite skill
+  minPrerequisiteScore   Float    @default(60.0) // Score required in prereq before recommending advanced
+
+  subSkill     SkillSubSkill @relation("SkillDependencies", fields: [subSkillId], references: [id], onDelete: Cascade)
+  prerequisite SkillSubSkill @relation("PrerequisiteDependencies", fields: [prerequisiteSubSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([subSkillId, prerequisiteSubSkillId])
+}
+
+model LearningRoadmap {
+  id               String   @id @default(uuid())
+  studentId        String
+  careerRoleId     String?
+  opportunityId    String?
+  targetTitle      String
+  targetType       String   @default("ROLE") // ROLE, OPPORTUNITY
+  version          Int      @default(1)
+  status           String   @default("ACTIVE") // ACTIVE, ARCHIVED, COMPLETED
+  currentReadiness Float    @default(0)
+  targetReadiness  Float    @default(80.0)
+  totalPhases      Int      @default(0)
+  completedPhases  Int      @default(0)
+  summaryText      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  careerRole  CareerRole?    @relation(fields: [careerRoleId], references: [id], onDelete: SetNull)
+  opportunity Opportunity?   @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  steps       RoadmapStep[]
+}
+
+model RoadmapStep {
+  id                     String   @id @default(uuid())
+  roadmapId              String
+  phaseNumber            Int
+  subSkillId             String
+  phaseTitle             String
+  currentScore           Float
+  targetScore            Float
+  gap                    Float
+  isMandatory            Boolean  @default(true)
+  priorityScore          Float    @default(0)
+  status                 String   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED, TARGET_ACHIEVED
+  aiRationale            String
+  topicsList             String?  // JSON serialized string array of topics
+  recommendedCourseId    String?
+  practiceQuestionsCount Int      @default(10)
+  suggestedProject       String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  roadmap   LearningRoadmap   @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  subSkill  SkillSubSkill     @relation(fields: [subSkillId], references: [id], onDelete: Cascade)
+  course    Course?           @relation(fields: [recommendedCourseId], references: [id], onDelete: SetNull)
+  resources RoadmapResource[]
+}
+
+model RoadmapResource {
+  id          String   @id @default(uuid())
+  stepId      String
+  type        String   // COURSE, PROJECT, PRACTICE, WORKSHOP, MENTORSHIP, CERTIFICATION
+  title       String
+  description String?
+  providerName String?
+  url         String?
+  duration    String?
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  step RoadmapStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================================
+// OTP VERIFICATION & AUTHENTICATION MODELS
+// =========================================================================
+
+model OTPVerification {
+  id          String    @id @default(uuid())
+  userId      String?
+  identifier  String    // Normalized email or phone
+  otpHash     String    // Bcrypt-hashed OTP representation
+  expiresAt   DateTime  // Expiration timestamp
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  verifiedAt  DateTime?
+  used        Boolean   @default(false)
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([identifier, used, expiresAt])
+}
+
+// =========================================================================
+// INDUSTRY ↔ INSTITUTION PARTNERSHIP MODEL
+// =========================================================================
+
+model IndustryInstitutionPartnership {
+  id              String    @id @default(uuid())
+  industryId      String
+  institutionId   String
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  partnershipType String?   @default("ACADEMIA_INDUSTRY_MOU") // CLINICAL_RESEARCH, PLACEMENT_PARTNER, INTERNSHIP_MOU, R_AND_D_COLLAB
+  proposalNote    String?
+  requestedAt     DateTime  @default(now())
+  respondedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  industry    IndustryProfile    @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([industryId, institutionId])
+  @@index([status])
+}
+
+// =========================================================================
+// EVIDENCE-BASED SKILL VERIFICATION MODEL
+// =========================================================================
+
+model SkillEvidence {
+  id                  String    @id @default(uuid())
+  studentId           String
+  skillId             String
+  subSkillId          String?
+  evidenceType        String    // SELF_DECLARED, EVIDENCE_PROVIDED, CREDENTIAL_VERIFIED, SKILL_ASSESSED, INDUSTRY_VALIDATED
+  status              String    @default("COMPLETED") // PENDING, VERIFIED, REJECTED, COMPLETED, VALIDATED
+  score               Float?
+  sourceName          String
+  sourceId            String?
+  assessmentId        String?
+  assessmentAttemptId String?
+  opportunityId       String?
+  certificateId       String?
+  issuer              String?
+  credentialId        String?
+  documentUrl         String?
+  verifiedById        String?
+  verifiedAt          DateTime?
+  remarks             String?
+  evidenceDate        DateTime  @default(now())
+  metadata            String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  student     StudentProfile        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  skill       Skill                 @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  subSkill    SkillSubSkill?        @relation(fields: [subSkillId], references: [id], onDelete: SetNull)
+  certificate StudentCertification? @relation(fields: [certificateId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, skillId])
+  @@index([evidenceType])
+}
+
 
