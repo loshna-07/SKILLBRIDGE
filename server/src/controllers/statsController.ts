@@ -59,3 +59,28 @@ export const updateWeights = async (req: AuthRequest, res: Response): Promise<vo
     res.status(500).json({ message: error.message || 'Failed to update weights.' });
   }
 };
+
+export const inspectStudents = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const students = await prisma.user.findMany({
+      where: { role: 'STUDENT' },
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+        studentProfile: {
+          select: {
+            id: true,
+            fullName: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json({ count: students.length, students });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to inspect students.' });
+  }
+};
+
