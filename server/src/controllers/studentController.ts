@@ -2405,3 +2405,372 @@ export const getStudentEvidenceTimelineController = async (req: AuthRequest, res
     res.status(500).json({ message: error.message || 'Failed to fetch evidence timeline.' });
   }
 };
+
+// Unified Progress Tracking Controller
+export const getStudentProgressTracking = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const student = await prisma.studentProfile.findUnique({
+      where: { userId: req.user!.id },
+      include: {
+        skillProfiles: {
+          include: {
+            skill: {
+              include: {
+                category: true,
+                subSkills: true,
+              },
+            },
+          },
+        },
+        subSkillScores: {
+          include: {
+            subSkill: {
+              include: { skill: true },
+            },
+          },
+        },
+        assessmentAttempts: {
+          orderBy: { startedAt: 'desc' },
+          include: {
+            assessment: {
+              include: { category: true },
+            },
+          },
+        },
+        courseEnrollments: {
+          include: {
+            course: {
+              include: {
+                modules: {
+                  include: { lessons: true },
+                },
+              },
+            },
+          },
+        },
+        targetCareerRole: {
+          include: {
+            roleSkills: {
+              include: {
+                subSkill: { include: { skill: true } },
+              },
+            },
+          },
+        },
+        applications: {
+          include: {
+            opportunity: {
+              include: {
+                industry: true,
+                skills: { include: { skill: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      res.status(404).json({ message: 'Student profile not found.' });
+      return;
+    }
+
+    // 1. Skill Growth & Granular Analysis
+    const growthData: any = await calculateSkillGrowth(student.id);
+    const evidenceList: any[] = await getStudentSkillEvidenceProfile(student.id);
+    const activeRoadmap: any = await getActiveRoadmap(student.id);
+
+    // 2. Compute Overall Skill Progress & KPI stats
+    const allSkills: any[] = student.skillProfiles || [];
+    const allSubSkills: any[] = student.subSkillScores || [];
+
+    const totalSkillsCount = allSkills.length;
+    const avgScore = totalSkillsCount > 0
+      ? Math.round(allSkills.reduce((sum: number, s: any) => sum + s.scorePercentage, 0) / totalSkillsCount)
+      : (allSubSkills.length > 0 ? Math.round(allSubSkills.reduce((sum: number, s: any) => sum + s.scorePercentage, 0) / allSubSkills.length) : 0);
+
+    // Skills improved count from growth report
+    const skillsImproved = (growthData?.skills || []).filter((s: any) => (s.improvementDelta || 0) > 0).length;
+    const skillsDeveloping = allSkills.filter((s: any) => s.scorePercentage >= 40 && s.scorePercentage < 75).length;
+    const skillsNeedingAttention = allSkills.filter((s: any) => s.scorePercentage < 40).length;
+
+    // Previous vs Current Score
+    const prevScore = growthData?.skills && growthData.skills.length > 0
+      ? Math.round(growthData.skills.reduce((sum: number, s: any) => sum + (s.initialScore || s.currentScore), 0) / growthData.skills.length)
+      : Math.max(0, avgScore - (skillsImproved > 0 ? 8 : 0));
+    
+    const overallDelta = avgScore - prevScore;
+
+    // 3. Granular Skill Progress List
+    const skillProgressList = allSkills.map((sp: any) => {
+      const growthItem = (growthData?.skills || []).find((g: any) => g.skillName === sp.skill?.name);
+      const subSkillsForSkill = allSubSkills
+        .filter((sub: any) => sub.subSkill?.skillId === sp.skillId || sub.subSkill?.skill?.name === sp.skill?.name)
+        .map((sub: any) => ({
+          subSkillId: sub.subSkillId,
+          subSkillName: sub.subSkill?.name || 'Sub-skill',
+          scorePercentage: sub.scorePercentage,
+          proficiencyLevel: sub.proficiencyLevel,
+          questionsAttempted: sub.questionsAttempted,
+          questionsCorrect: sub.questionsCorrect,
+          lastAssessedAt: sub.lastAssessedAt,
+        }));
+
+      // Evidence summary from evidenceList
+      const evItem = (evidenceList || []).find((e: any) => e.skillId === sp.skillId || e.skillName === sp.skill?.name);
+
+      return {
+        skillId: sp.skillId,
+        skillName: sp.skill?.name || 'Skill',
+        categoryName: sp.skill?.category?.name || 'General',
+        currentScore: sp.scorePercentage,
+        currentProficiency: sp.proficiencyLevel,
+        previousScore: growthItem ? growthItem.initialScore : Math.max(0, sp.scorePercentage - 10),
+        improvementDelta: growthItem ? growthItem.improvementDelta : 0,
+        lastAssessedAt: sp.lastAssessedAt || sp.createdAt,
+        verified: sp.verified,
+        verificationStatus: sp.verificationStatus,
+        highestEvidenceLevel: evItem?.highestEvidenceLevel || (sp.verified ? 'CREDENTIAL_VERIFIED' : 'SELF_DECLARED'),
+        evidenceStrength: evItem?.evidenceStrength || (sp.verified ? 'MEDIUM' : 'LOW'),
+        evidenceList: evItem?.evidenceList || [],
+        subSkills: subSkillsForSkill.length > 0 ? subSkillsForSkill : (sp.skill?.subSkills || []).map((sub: any) => ({
+          subSkillId: sub.id,
+          subSkillName: sub.name,
+          scorePercentage: sp.scorePercentage,
+          proficiencyLevel: sp.proficiencyLevel,
+          lastAssessedAt: sp.lastAssessedAt,
+        })),
+      };
+    });
+
+    // 4. Learning Progress
+    const enrollments: any[] = student.courseEnrollments || [];
+    const coursesCompleted = enrollments.filter((e: any) => e.completed || e.progressPercentage >= 100).length;
+    const coursesInProgress = enrollments.filter((e: any) => !e.completed && e.progressPercentage > 0 && e.progressPercentage < 100).length;
+    const coursesNotStarted = enrollments.filter((e: any) => e.progressPercentage === 0).length;
+
+    // Estimate learning hours from courses
+    const totalLearningHours = enrollments.reduce((sum: number, e: any) => {
+      const match = (e.course?.duration || '4 hours').match(/\d+/);
+      const hours = match ? parseInt(match[0], 10) : 4;
+      return sum + Math.round((hours * (e.progressPercentage || 0)) / 100);
+    }, 0);
+
+    const avgCourseCompletion = enrollments.length > 0
+      ? Math.round(enrollments.reduce((sum: number, e: any) => sum + e.progressPercentage, 0) / enrollments.length)
+      : 0;
+
+    const enrolledCoursesList = enrollments.map((e: any) => {
+      const totalLessons = (e.course?.modules || []).reduce((acc: number, m: any) => acc + (m.lessons?.length || 0), 0);
+      const completedLessons = Math.round((totalLessons * e.progressPercentage) / 100);
+      return {
+        id: e.id,
+        courseId: e.courseId,
+        title: e.course?.title || 'Enrolled Course',
+        category: e.course?.category || 'General',
+        duration: e.course?.duration || '4 hours',
+        progressPercentage: e.progressPercentage,
+        completed: e.completed,
+        totalLessons,
+        completedLessons,
+        certificateRequested: e.certificateRequested,
+        certificateApproved: e.certificateApproved,
+        certificateUrl: e.certificateUrl,
+      };
+    });
+
+    // 5. Roadmap Progress
+    let careerGoal = student.targetCareerRole?.name || student.targetCareer || student.careerInterests || 'General Professional';
+    let roadmapStages = {
+      completed: [] as any[],
+      inProgress: [] as any[],
+      upcoming: [] as any[],
+      overallProgressPercentage: 0,
+    };
+
+    if (activeRoadmap?.phases && activeRoadmap.phases.length > 0) {
+      careerGoal = activeRoadmap.targetRole?.name || activeRoadmap.targetTitle || careerGoal;
+      const totalPhases = activeRoadmap.phases.length;
+      let completedCount = 0;
+
+      activeRoadmap.phases.forEach((p: any) => {
+        const stageItem = {
+          phaseNumber: p.phaseNumber,
+          title: p.phaseTitle,
+          subSkillName: p.subSkillName,
+          skillName: p.skillName,
+          currentScore: p.currentScore,
+          targetScore: p.targetScore,
+          isMandatory: p.isMandatory,
+          topicsToMaster: p.topicsToMaster || [],
+          status: p.status,
+          recommendedCourse: p.recommendedCourse,
+        };
+
+        if (p.status === 'TARGET_ACHIEVED' || p.currentScore >= p.targetScore) {
+          roadmapStages.completed.push({ ...stageItem, status: 'COMPLETED' });
+          completedCount++;
+        } else if (p.status === 'CURRENT_PHASE' || roadmapStages.inProgress.length === 0) {
+          roadmapStages.inProgress.push({ ...stageItem, status: 'IN_PROGRESS' });
+        } else {
+          roadmapStages.upcoming.push({ ...stageItem, status: 'UPCOMING' });
+        }
+      });
+
+      roadmapStages.overallProgressPercentage = Math.round((completedCount / totalPhases) * 100);
+    } else {
+      roadmapStages = {
+        completed: allSkills.filter((s: any) => s.scorePercentage >= 75).map((s: any, idx: number) => ({
+          phaseNumber: idx + 1,
+          title: `Mastered ${s.skill?.name || 'Skill'}`,
+          skillName: s.skill?.name || 'Skill',
+          currentScore: s.scorePercentage,
+          targetScore: 75,
+          status: 'COMPLETED',
+        })),
+        inProgress: allSkills.filter((s: any) => s.scorePercentage >= 40 && s.scorePercentage < 75).map((s: any, idx: number) => ({
+          phaseNumber: idx + 1,
+          title: `Advancing ${s.skill?.name || 'Skill'}`,
+          skillName: s.skill?.name || 'Skill',
+          currentScore: s.scorePercentage,
+          targetScore: 75,
+          status: 'IN_PROGRESS',
+        })),
+        upcoming: allSkills.filter((s: any) => s.scorePercentage < 40).map((s: any, idx: number) => ({
+          phaseNumber: idx + 1,
+          title: `Strengthen ${s.skill?.name || 'Skill'}`,
+          skillName: s.skill?.name || 'Skill',
+          currentScore: s.scorePercentage,
+          targetScore: 75,
+          status: 'UPCOMING',
+        })),
+        overallProgressPercentage: avgScore,
+      };
+    }
+
+    // 6. Assessment Progress
+    const attempts: any[] = student.assessmentAttempts || [];
+    const skillBridgeAssessments = attempts.filter((a: any) => a.assessment?.type !== 'INDUSTRY');
+    const industryAssessments = attempts.filter((a: any) => a.assessment?.type === 'INDUSTRY');
+
+    const latestAttempt = attempts.length > 0 ? attempts[0] : null;
+    const previousAttempt = attempts.length > 1 ? attempts[1] : null;
+
+    const assessmentTimeline = attempts.slice(0, 10).map((a: any) => ({
+      id: a.id,
+      title: a.assessment?.title || 'Skill Assessment',
+      category: a.assessment?.category?.name || 'Technical Assessment',
+      type: a.assessment?.type || 'SKILLBRIDGE',
+      scorePercentage: a.scorePercentage,
+      passed: a.passed,
+      date: a.startedAt,
+    }));
+
+    // 7. Opportunity Readiness
+    const allPublishedOpps = await prisma.opportunity.findMany({
+      where: { isPublished: true },
+      take: 6,
+      include: {
+        industry: true,
+        skills: { include: { skill: true } },
+      },
+    });
+
+    const opportunitiesReadiness = await Promise.all(
+      allPublishedOpps.map(async (opp: any) => {
+        try {
+          const match: any = await calculateOpportunityMatch(student.id, opp.id);
+          const requiredThreshold = 75;
+          const isReady = match.matchPercentage >= requiredThreshold;
+
+          return {
+            opportunityId: opp.id,
+            title: opp.title,
+            companyName: opp.industry?.companyName || 'Industry Partner',
+            type: opp.type,
+            location: opp.location || 'Pan India',
+            workMode: opp.workMode,
+            stipendOrSalary: opp.stipendOrSalary,
+            readinessPercentage: Math.round(match.matchPercentage || 0),
+            requiredThreshold,
+            isReady,
+            matchedSkills: (match.matchedSkills || []).map((ms: any) => ms.name),
+            missingSkills: (match.missingSkills || []).map((ms: any) => ms.name),
+            skillsImproving: (match.skillGaps || []).filter((g: any) => g.gapType === 'LOW_PROFICIENCY').map((g: any) => g.name),
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const validOppsReadiness = opportunitiesReadiness.filter(Boolean);
+
+    // 8. Overall Empty State Check
+    const isEmpty = totalSkillsCount === 0 && attempts.length === 0 && enrollments.length === 0;
+
+    res.json({
+      isEmpty,
+      studentInfo: {
+        id: student.id,
+        fullName: student.fullName,
+        department: student.department,
+        degree: student.degree,
+        institutionName: student.institutionName,
+        careerGoal,
+      },
+      overallProgress: {
+        overallProgressPercentage: avgScore,
+        skillsImprovedCount: skillsImproved,
+        skillsDevelopingCount: skillsDeveloping,
+        skillsNeedingAttentionCount: skillsNeedingAttention,
+        currentOverallScore: avgScore,
+        previousOverallScore: prevScore,
+        overallDelta,
+        totalAssessedSkills: totalSkillsCount,
+      },
+      skillProgress: skillProgressList,
+      learningProgress: {
+        coursesCompleted,
+        coursesInProgress,
+        coursesNotStarted,
+        totalLearningHours,
+        courseCompletionPercentage: avgCourseCompletion,
+        assessmentCompletionCount: attempts.length,
+        enrolledCourses: enrolledCoursesList,
+      },
+      roadmapProgress: {
+        careerGoal,
+        overallProgressPercentage: roadmapStages.overallProgressPercentage,
+        completedStages: roadmapStages.completed,
+        inProgressStages: roadmapStages.inProgress,
+        upcomingStages: roadmapStages.upcoming,
+      },
+      assessmentProgress: {
+        totalAttempts: attempts.length,
+        skillBridgeCount: skillBridgeAssessments.length,
+        industryCount: industryAssessments.length,
+        latestAssessment: latestAttempt ? {
+          title: latestAttempt.assessment?.title || 'Skill Assessment',
+          type: latestAttempt.assessment?.type || 'SKILLBRIDGE',
+          scorePercentage: latestAttempt.scorePercentage,
+          passed: latestAttempt.passed,
+          date: latestAttempt.startedAt,
+        } : null,
+        previousAssessment: previousAttempt ? {
+          title: previousAttempt.assessment?.title || 'Skill Assessment',
+          type: previousAttempt.assessment?.type || 'SKILLBRIDGE',
+          scorePercentage: previousAttempt.scorePercentage,
+          passed: previousAttempt.passed,
+          date: previousAttempt.startedAt,
+        } : null,
+        timeline: assessmentTimeline,
+      },
+      evidenceProfile: evidenceList || [],
+      opportunityReadiness: validOppsReadiness,
+    });
+  } catch (error: any) {
+    console.error('getStudentProgressTracking error:', error);
+    res.status(500).json({ message: error.message || 'Failed to fetch progress tracking data.' });
+  }
+};

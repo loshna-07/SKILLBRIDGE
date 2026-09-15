@@ -30,6 +30,7 @@ import { StudentCourseCatalog } from './pages/student/StudentCourseCatalog';
 import { StudentCourseDetail } from './pages/student/StudentCourseDetail';
 import { StudentMyCourses } from './pages/student/StudentMyCourses';
 import { StudentCourseStudyRoom } from './pages/student/StudentCourseStudyRoom';
+import { StudentProgressTracking } from './pages/student/StudentProgressTracking';
 
 // Industry Pages
 import { IndustryDashboard } from './pages/industry/IndustryDashboard';
@@ -84,6 +85,8 @@ export const App: React.FC = () => {
               <Route path="assessment" element={<StudentAssessments />} />
               <Route path="skill-assessment" element={<StudentAssessments />} />
               <Route path="skill-mapping" element={<StudentSkillMapping />} />
+              <Route path="progress" element={<StudentProgressTracking />} />
+              <Route path="progress-tracking" element={<StudentProgressTracking />} />
               <Route path="skills" element={<StudentSkills />} />
               <Route path="certifications" element={<StudentCertifications />} />
               <Route path="academic-reports" element={<StudentAcademicReports />} />

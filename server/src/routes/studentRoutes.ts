@@ -65,6 +65,7 @@ import {
   reassessStudentSkill,
   getStudentEvidenceProfileController,
   getStudentEvidenceTimelineController,
+  getStudentProgressTracking,
 } from '../controllers/studentController';
 import { authenticateUser, authorizeRoles } from '../middleware/authMiddleware';
 
@@ -79,6 +80,9 @@ router.use(authenticateUser);
 router.get('/dashboard', authorizeRoles('STUDENT'), getStudentDashboard);
 router.get('/profile', authorizeRoles('STUDENT'), getStudentProfile);
 router.put('/profile', authorizeRoles('STUDENT'), updateStudentProfile);
+
+// Progress Tracking
+router.get('/progress-tracking', authorizeRoles('STUDENT'), getStudentProgressTracking);
 
 // Evidence-Based Skill Verification & Profile
 router.get('/evidence-profile', authorizeRoles('STUDENT'), getStudentEvidenceProfileController);

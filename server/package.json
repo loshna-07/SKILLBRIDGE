@@ -13,6 +13,7 @@
     "prisma:migrate": "prisma migrate dev",
     "seed:demo": "ts-node src/seed_multi_domain_demo.ts",
     "clear:demo": "ts-node src/clear_demo_data.ts",
+    "seed:sih": "ts-node src/seed_sih_demo.ts",
     "seed:ayurveda-demo": "ts-node src/seed_multi_domain_demo.ts",
     "clear:ayurveda-demo": "ts-node src/clear_demo_data.ts"
   },
